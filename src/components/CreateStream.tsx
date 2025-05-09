@@ -53,15 +53,30 @@ const CreateStream = ({ username, socket }: CreateStreamProps) => {
       
       // Set the stream as the video source
       if (localVideoRef.current) {
+        // First clear the video source to ensure refresh
+        localVideoRef.current.srcObject = null
+        
+        // Short delay to ensure DOM updates
+        await new Promise(resolve => setTimeout(resolve, 100))
+        
+        // Set the stream and play
         localVideoRef.current.srcObject = stream
         
-        // Ensure video is playing
-        try {
-          await localVideoRef.current.play()
-          console.log('Local video playing')
-        } catch (err) {
-          console.error('Error playing local video:', err)
+        // Ensure video is playing with multiple attempts
+        const attemptPlay = async (retries = 3) => {
+          try {
+            await localVideoRef.current?.play()
+            console.log('Local video playing successfully')
+          } catch (err) {
+            console.error('Error playing local video:', err)
+            if (retries > 0) {
+              console.log(`Retrying playback, ${retries} attempts left`)
+              setTimeout(() => attemptPlay(retries - 1), 500)
+            }
+          }
         }
+        
+        await attemptPlay()
       }
       
       // Start collecting stats

@@ -38,7 +38,7 @@ const ViewStream = ({ username, socket }: ViewStreamProps) => {
     // Set the stream as the video source
     remoteVideoRef.current.srcObject = null // Clear first to force refresh
     
-    // Short delay to ensure DOM updates
+    // Set the stream after a short delay to ensure DOM updates
     setTimeout(() => {
       if (remoteVideoRef.current && remoteStreamRef.current) {
         console.log('Setting srcObject on video element')
@@ -51,29 +51,57 @@ const ViewStream = ({ username, socket }: ViewStreamProps) => {
             clearTimeout(playAttemptTimeoutRef.current)
           }
           
-          // Wait a short time before attempting to play to allow all tracks to be added
+          // Make immediate first attempt to play
+          if (remoteVideoRef.current.paused) {
+            console.log('Immediate play attempt')
+            remoteVideoRef.current.play()
+              .then(() => {
+                console.log('Immediate play successful')
+                setIsConnected(true)
+                setVideoVisible(true)
+                setError('')
+              })
+              .catch(err => {
+                console.warn('Immediate play failed, will try again with delay:', err)
+                // Will try again with the delayed attempt below
+              })
+          }
+          
+          // Wait a short time before attempting to play again to allow all tracks to be added
           playAttemptTimeoutRef.current = setTimeout(() => {
             if (remoteVideoRef.current && remoteVideoRef.current.paused) {
-              console.log('Attempting to play video...')
+              console.log('Delayed play attempt')
               
               // Make sure video is visible
               setVideoVisible(true)
               
-              remoteVideoRef.current.play()
-                .then(() => {
-                  console.log('Video playback started successfully')
-                  setIsConnected(true)
-                  setError('')
-                })
-                .catch(err => {
-                  console.error('Error playing video:', err)
-                  // Try again with user interaction
-                  setError('Click the video to start playback')
-                })
+              // Add a retry mechanism for playback
+              const attemptPlayback = (retryCount = 0) => {
+                if (retryCount >= 3) {
+                  console.error('Max playback retry attempts reached')
+                  setError('Could not start video playback. Please try refreshing.')
+                  return
+                }
+
+                remoteVideoRef.current?.play()
+                  .then(() => {
+                    console.log('Video playback started successfully')
+                    setIsConnected(true)
+                    setError('')
+                  })
+                  .catch(err => {
+                    console.error(`Error playing video (attempt ${retryCount + 1}):`, err)
+                    // Try again with a delay
+                    setTimeout(() => attemptPlayback(retryCount + 1), 1000)
+                  })
+              }
+
+              attemptPlayback()
             }
           }, 1000) // Wait 1 second to collect tracks before playing
         } else {
           console.warn('No tracks in remote stream')
+          setError('No media tracks received. Please try refreshing.')
         }
       }
     }, 100)
@@ -140,6 +168,14 @@ const ViewStream = ({ username, socket }: ViewStreamProps) => {
       console.log(`Joining stream: ${streamId}`)
       socket.emit('join-stream', { streamId, username })
     }
+
+    // Setup an automatic retry if no connection is established within 10 seconds
+    const initialConnectionTimeout = setTimeout(() => {
+      if (!isConnected && remoteVideoRef.current?.paused) {
+        console.log('No connection established after 10 seconds, trying to reconnect...')
+        handleRestartConnection()
+      }
+    }, 10000)
 
     // Socket event listeners for WebRTC signaling
     const handleStreamNotFound = () => {
@@ -214,6 +250,8 @@ const ViewStream = ({ username, socket }: ViewStreamProps) => {
       socket.off('stream-ended', handleStreamEnded)
       socket.off('error', handleError)
       
+      clearTimeout(initialConnectionTimeout)
+      
       // Clear any pending timeouts
       if (playAttemptTimeoutRef.current) {
         clearTimeout(playAttemptTimeoutRef.current)
@@ -274,6 +312,21 @@ const ViewStream = ({ username, socket }: ViewStreamProps) => {
         peerConnectionRef.current = null
       }
       
+      // Reset video state 
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = null
+      }
+      
+      // Create a new MediaStream for remote tracks
+      const remoteStream = new MediaStream()
+      remoteStreamRef.current = remoteStream
+      
+      // Reset state
+      setTracksReceived({ audio: false, video: false })
+      setVideoVisible(false)
+      setIsConnected(false)
+      setConnectionState('connecting')
+      
       // Create a new RTCPeerConnection
       const peerConnection = new RTCPeerConnection({
         iceServers: [
@@ -288,15 +341,10 @@ const ViewStream = ({ username, socket }: ViewStreamProps) => {
       
       console.log('Created new peer connection')
       
-      // Create a new MediaStream for remote tracks
-      const remoteStream = new MediaStream()
-      remoteStreamRef.current = remoteStream
-      
-      // Reset tracks received state
-      setTracksReceived({ audio: false, video: false })
-      setVideoVisible(false)
-      setIsConnected(false)
-      setConnectionState('connecting')
+      // Pre-set the remote stream to the video element to avoid race conditions
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = remoteStream
+      }
       
       // Set up event handlers
       peerConnection.ontrack = (event) => {
@@ -304,6 +352,13 @@ const ViewStream = ({ username, socket }: ViewStreamProps) => {
         
         // Add track to remote stream
         remoteStream.addTrack(event.track)
+        
+        // Update tracks received state immediately
+        if (event.track.kind === 'audio') {
+          setTracksReceived(prev => ({ ...prev, audio: true }))
+        } else if (event.track.kind === 'video') {
+          setTracksReceived(prev => ({ ...prev, video: true }))
+        }
         
         event.track.onunmute = () => {
           console.log('Track unmuted:', event.track.kind)
@@ -314,10 +369,29 @@ const ViewStream = ({ username, socket }: ViewStreamProps) => {
           } else if (event.track.kind === 'video') {
             setTracksReceived(prev => ({ ...prev, video: true }))
           }
+          
+          // Handle the remote stream update when track is unmuted
+          handleRemoteStream()
         }
         
-        // Handle the remote stream update
-        handleRemoteStream()
+        // Delay the stream handling slightly to allow potential second track to arrive
+        setTimeout(() => {
+          console.log('Handling remote stream after short delay to collect tracks')
+          handleRemoteStream()
+        }, 500)
+      }
+      
+      // Store the peer connection early to avoid race conditions
+      peerConnectionRef.current = peerConnection
+      
+      // Monitor track changes
+      peerConnection.onremovetrack = (event) => {
+        console.log('Track removed:', event.track.kind)
+        if (event.track.kind === 'audio') {
+          setTracksReceived(prev => ({ ...prev, audio: false }))
+        } else if (event.track.kind === 'video') {
+          setTracksReceived(prev => ({ ...prev, video: false }))
+        }
       }
       
       peerConnection.onicecandidate = (event) => {
@@ -345,15 +419,27 @@ const ViewStream = ({ username, socket }: ViewStreamProps) => {
           console.log('ICE connected, checking for tracks...')
           console.log('Remote tracks:', peerConnection.getReceivers().map(r => r.track?.kind))
           
-          // Try playing the video again if we're connected but not playing
-          if (remoteVideoRef.current && remoteVideoRef.current.paused && remoteStreamRef.current) {
-            handleRemoteStream()
-          }
+          // Force a stream refresh when ICE connects
+          setTimeout(() => {
+            console.log('Refreshing stream after ICE connected')
+            if (remoteStreamRef.current) {
+              handleRemoteStream()
+            }
+          }, 500) // Short delay to ensure connection is stable
         }
       }
       
       peerConnection.onconnectionstatechange = () => {
         console.log(`Connection state changed: ${peerConnection.connectionState}`)
+        if (peerConnection.connectionState === 'connected') {
+          // Force a stream refresh when connection is established
+          setTimeout(() => {
+            console.log('Refreshing stream after connection established')
+            if (remoteStreamRef.current) {
+              handleRemoteStream()
+            }
+          }, 500) // Short delay to ensure connection is stable
+        }
       }
       
       peerConnection.onsignalingstatechange = () => {
@@ -407,14 +493,13 @@ const ViewStream = ({ username, socket }: ViewStreamProps) => {
         answer: peerConnection.localDescription
       })
       
-      // Store the peer connection
-      peerConnectionRef.current = peerConnection
-      
       // Set a timeout to check if we've received any tracks
       setTimeout(() => {
         if (remoteStreamRef.current && remoteStreamRef.current.getTracks().length === 0) {
           console.warn('No tracks received after 5 seconds')
-          setError('No media received. Try refreshing the stream.')
+          setError('No media received. Attempting to reconnect...')
+          // Attempt to restart connection if no tracks received
+          handleRestartConnection()
         }
       }, 5000)
     } catch (err) {
@@ -448,33 +533,57 @@ const ViewStream = ({ username, socket }: ViewStreamProps) => {
     if (remoteVideoRef.current && remoteStreamRef.current) {
       console.log('Refreshing video element')
       
-      // Temporarily remove and reattach the stream
-      const stream = remoteStreamRef.current
+      // Temporarily remove the stream
       remoteVideoRef.current.srcObject = null
+      
+      // Reset connection state
+      setIsConnected(false)
+      setVideoVisible(false)
       
       // Short timeout to ensure DOM updates
       setTimeout(() => {
-        if (remoteVideoRef.current) {
-          remoteVideoRef.current.srcObject = stream
+        if (remoteVideoRef.current && remoteStreamRef.current) {
+          // Check if the stream has tracks
+          const hasTracks = remoteStreamRef.current.getTracks().length > 0
+          console.log(`Stream has ${remoteStreamRef.current.getTracks().length} tracks for refresh`)
           
-          remoteVideoRef.current.play()
-            .then(() => {
-              console.log('Video refreshed and playing')
-              setVideoVisible(true)
-              setIsConnected(true)
-            })
-            .catch(err => {
-              console.error('Error playing video after refresh:', err)
-              setError('Could not play video. Click to try again.')
-            })
+          // Reattach the stream
+          remoteVideoRef.current.srcObject = remoteStreamRef.current
+          
+          if (hasTracks) {
+            // Add a retry mechanism for playback
+            const attemptPlayback = (retryCount = 0) => {
+              if (retryCount >= 3) {
+                console.error('Max playback retry attempts reached')
+                setError('Could not start video playback. Please try refreshing.')
+                return
+              }
+
+              remoteVideoRef.current?.play()
+                .then(() => {
+                  console.log('Video refreshed and playing')
+                  setVideoVisible(true)
+                  setIsConnected(true)
+                  setError('')
+                })
+                .catch(err => {
+                  console.error(`Error playing video after refresh (attempt ${retryCount + 1}):`, err)
+                  // Try again with a delay
+                  setTimeout(() => attemptPlayback(retryCount + 1), 1000)
+                })
+            }
+
+            attemptPlayback()
+          } else {
+            console.warn('No tracks available for refresh, trying to reconnect')
+            handleRestartConnection()
+          }
         }
       }, 100)
     } else {
-      console.log('Reconnecting to stream')
+      console.log('No media stream available, reconnecting to stream')
       // If we don't have a stream, try reconnecting
-      if (streamId) {
-        socket.emit('join-stream', { streamId, username })
-      }
+      handleRestartConnection()
     }
   }
 

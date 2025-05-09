@@ -1,0 +1,25 @@
+name: 🚀 Deploy website on push
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  web-deploy:
+    name: 🎉 Deploy
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: 🚚 Get latest code
+        uses: actions/checkout@v4
+
+      - name: 📂 Sync files
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ vars.FTP_SERVER || secrets.FTP_SERVER }}
+          username: ${{ vars.FTP_USERNAME || secrets.FTP_USERNAME }}
+          password: ${{ vars.FTP_PASSWORD || secrets.FTP_PASSWORD }}
+          server-dir: htdocs/
+          local-dir: ./ # or the folder where your built site files are
