@@ -21,7 +21,5 @@ jobs:
           server: ${{ vars.FTP_SERVER || secrets.FTP_SERVER }}
           username: ${{ vars.FTP_USERNAME || secrets.FTP_USERNAME }}
           password: ${{ vars.FTP_PASSWORD || secrets.FTP_PASSWORD }}
-          server-dir: htdocs/
-          local-dir: ./ # or the folder where your built site files are
-          protocol: ftps
-          security: strict
+          server-dir: public_html/
+          local-dir: htdocs/ # or the folder where your built site files are
