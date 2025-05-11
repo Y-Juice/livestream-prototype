@@ -9,7 +9,6 @@ jobs:
   web-deploy:
     name: 🎉 Deploy
     runs-on: ubuntu-latest
-    environment: production
 
     steps:
       - name: 🚚 Get latest code
@@ -18,8 +17,8 @@ jobs:
       - name: 📂 Sync files
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
-          server: ${{ vars.FTP_SERVER || secrets.FTP_SERVER }}
-          username: ${{ vars.FTP_USERNAME || secrets.FTP_USERNAME }}
-          password: ${{ vars.FTP_PASSWORD || secrets.FTP_PASSWORD }}
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
           server-dir: public_html/
-          local-dir: htdocs/ # or the folder where your built site files are
+          local-dir: ./ # or the folder where your built site files are
