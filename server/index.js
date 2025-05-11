@@ -32,6 +32,8 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/livestrea
 // Store active streams and users
 const streams = new Map(); // streamId -> { broadcaster, viewers: Set<socketId> }
 const users = new Map();   // socketId -> { username, streamId, role }
+// Store chat messages for each stream
+const streamMessages = new Map(); // streamId -> Array<{username, message, timestamp}>
 
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
@@ -320,6 +322,59 @@ io.on('connection', (socket) => {
     });
   });
   
+  // Handle chat messages
+  socket.on('send-chat-message', ({ streamId, message }) => {
+    const user = users.get(socket.id);
+    
+    if (!user) {
+      socket.emit('error', { message: 'User not registered' });
+      return;
+    }
+    
+    // Check if stream exists
+    if (!streams.has(streamId)) {
+      socket.emit('error', { message: 'Stream not found' });
+      return;
+    }
+    
+    // Create chat message
+    const chatMessage = {
+      username: user.username,
+      message,
+      timestamp: Date.now()
+    };
+    
+    // Store the message in memory
+    if (!streamMessages.has(streamId)) {
+      streamMessages.set(streamId, []);
+    }
+    
+    // Add to message history (keep last 100 messages)
+    const messages = streamMessages.get(streamId);
+    messages.push(chatMessage);
+    if (messages.length > 100) {
+      messages.shift(); // Remove oldest message if over 100
+    }
+    
+    console.log(`Chat message from ${user.username} in stream ${streamId}: ${message}`);
+    
+    // Broadcast to all viewers and the broadcaster
+    io.to(streamId).emit('chat-message', chatMessage);
+  });
+  
+  // Get chat history for a stream
+  socket.on('get-chat-messages', ({ streamId }) => {
+    // Check if stream exists
+    if (!streams.has(streamId)) {
+      socket.emit('error', { message: 'Stream not found' });
+      return;
+    }
+    
+    // Send chat history
+    const messages = streamMessages.get(streamId) || [];
+    socket.emit('chat-messages', { messages });
+  });
+  
   // Join a stream
   socket.on('join-stream', ({ streamId, username }) => {
     // Check if stream exists
@@ -351,8 +406,14 @@ io.on('connection', (socket) => {
     // Add viewer to stream
     stream.viewers.add(socket.id);
     
+    // Add socket to the stream room for chat
+    socket.join(streamId);
+    
     console.log(`User ${username} joined stream ${streamId}`);
     logState();
+    
+    // Notify everyone in the stream that a new viewer joined
+    io.to(streamId).emit('viewer-joined', { username: user.username });
     
     // Find the broadcaster socket
     const broadcasterSocket = Array.from(io.sockets.sockets.values())
@@ -404,6 +465,9 @@ io.on('connection', (socket) => {
     const user = users.get(socket.id);
     
     if (user && user.streamId) {
+      // Leave the stream room for chat
+      socket.leave(user.streamId);
+      
       if (user.role === 'viewer') {
         // Remove viewer from stream
         const stream = streams.get(user.streamId);
@@ -424,6 +488,9 @@ io.on('connection', (socket) => {
             // Notify broadcaster of viewer count update
             broadcasterSocket.emit('viewer-count', { count: stream.viewers.size });
           }
+          
+          // Notify everyone in the stream that a viewer left
+          io.to(user.streamId).emit('viewer-left', { username: user.username });
         }
       } else if (user.role === 'broadcaster') {
         // End the stream
@@ -461,8 +528,11 @@ io.on('connection', (socket) => {
     if (user) {
       console.log(`User disconnected: ${user.username} (${socket.id})`);
       
-      // Handle as if user left the stream
+      // Leave any rooms
       if (user.streamId) {
+        socket.leave(user.streamId);
+        
+        // Handle as if user left the stream
         if (user.role === 'viewer') {
           // Remove viewer from stream
           const stream = streams.get(user.streamId);
@@ -480,6 +550,9 @@ io.on('connection', (socket) => {
               // Notify broadcaster of viewer count update
               broadcasterSocket.emit('viewer-count', { count: stream.viewers.size });
             }
+            
+            // Notify everyone in the stream that a viewer left
+            io.to(user.streamId).emit('viewer-left', { username: user.username });
           }
         } else if (user.role === 'broadcaster') {
           // End the stream
