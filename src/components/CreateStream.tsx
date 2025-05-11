@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Socket } from 'socket.io-client'
 import { v4 as uuidv4 } from 'uuid'
+import Chat from './Chat'
 
 interface CreateStreamProps {
   username: string
@@ -306,16 +307,43 @@ const CreateStream = ({ username, socket }: CreateStreamProps) => {
       try {
         console.log(`Creating offer for viewer: ${target}`)
         
+        // Clean up any existing peer connection for this target
+        if (peerConnectionsRef.current.has(target)) {
+          const existingConnection = peerConnectionsRef.current.get(target)
+          if (existingConnection) {
+            try {
+              existingConnection.close()
+            } catch (err) {
+              console.warn(`Error closing existing peer connection for ${target}:`, err)
+            }
+            peerConnectionsRef.current.delete(target)
+          }
+        }
+        
+        // Limit the maximum number of peer connections to prevent memory leaks
+        const MAX_PEER_CONNECTIONS = 10
+        if (peerConnectionsRef.current.size >= MAX_PEER_CONNECTIONS) {
+          console.warn(`Maximum peer connections (${MAX_PEER_CONNECTIONS}) reached. Closing oldest connection.`)
+          // Get the oldest connection (first key in Map)
+          const oldestTarget = peerConnectionsRef.current.keys().next().value
+          const oldConnection = peerConnectionsRef.current.get(oldestTarget)
+          if (oldConnection) {
+            try {
+              oldConnection.close()
+            } catch (err) {
+              console.warn(`Error closing oldest peer connection:`, err)
+            }
+            peerConnectionsRef.current.delete(oldestTarget)
+          }
+        }
+        
         // Create a new RTCPeerConnection
         const peerConnection = new RTCPeerConnection({
           iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' },
-            { urls: 'stun:stun2.l.google.com:19302' },
-            { urls: 'stun:stun3.l.google.com:19302' },
-            { urls: 'stun:stun4.l.google.com:19302' }
+            { urls: 'stun:stun1.l.google.com:19302' }
           ],
-          iceCandidatePoolSize: 10
+          iceCandidatePoolSize: 5 // Reduced from 10 to 5
         })
         
         // Add local tracks to the peer connection
@@ -463,20 +491,37 @@ const CreateStream = ({ username, socket }: CreateStreamProps) => {
       }
     }
   }, [socket, isStreaming, navigate])
+  
+  // Handle chat room joining separately to avoid excessive requests
+  const initialChatRequestRef = useRef(false)
+  
+  useEffect(() => {
+    // Only make the request once when streaming starts or if streamId changes
+    if (socket && isStreaming && streamId && !initialChatRequestRef.current) {
+      console.log(`Ensuring broadcaster is in chat room for stream: ${streamId}`)
+      socket.emit('get-chat-messages', { streamId })
+      initialChatRequestRef.current = true
+    }
+    
+    // Reset the ref when streaming stops
+    if (!isStreaming) {
+      initialChatRequestRef.current = false
+    }
+  }, [socket, isStreaming, streamId])
 
   return (
     <div className="max-w-4xl mx-auto">
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        {/* Header */}
-        <div className="p-6 bg-gray-50 border-b">
-          <h1 className="text-2xl font-bold">Create Stream</h1>
-          <p className="text-gray-600 mt-1">
-            {isStreaming ? 'You are live!' : 'Start streaming to your audience'}
-          </p>
-        </div>
-        
-        {/* Stream form */}
-        {!isStreaming ? (
+      {/* Stream form before streaming starts */}
+      {!isStreaming ? (
+        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+          {/* Header */}
+          <div className="p-6 bg-gray-50 border-b">
+            <h1 className="text-2xl font-bold">Create Stream</h1>
+            <p className="text-gray-600 mt-1">
+              Start streaming to your audience
+            </p>
+          </div>
+          
           <div className="p-6">
             {error && (
               <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
@@ -520,20 +565,28 @@ const CreateStream = ({ username, socket }: CreateStreamProps) => {
               </button>
             </div>
           </div>
-        ) : (
-          <div>
-            <div className="mb-4">
-              <div className="flex items-center justify-between mb-2">
-                <div>
-                  <span className="inline-block bg-red-500 text-white text-sm px-2 py-1 rounded-full mr-2">
-                    LIVE
-                  </span>
-                  <span className="text-gray-600">
-                    Stream ID: <span className="font-mono">{streamId}</span>
-                  </span>
-                </div>
-                <div className="text-sm text-gray-600">
-                  {viewerCount} {viewerCount === 1 ? 'viewer' : 'viewers'}
+        </div>
+      ) : (
+        // Streaming interface after streaming starts
+        <div className="flex flex-col lg:flex-row gap-4">
+          <div className="lg:flex-1">
+            <div className="bg-white rounded-lg shadow-md overflow-hidden">
+              <div className="p-4 bg-gray-50 border-b">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h1 className="text-xl font-bold">Live Stream</h1>
+                    <div className="flex items-center mt-1">
+                      <span className="inline-block bg-red-500 text-white text-xs px-2 py-1 rounded-full mr-2">
+                        LIVE
+                      </span>
+                      <span className="text-gray-600 text-sm">
+                        Stream ID: <span className="font-mono">{streamId}</span>
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-sm text-gray-600 font-semibold">
+                    {viewerCount} {viewerCount === 1 ? 'viewer' : 'viewers'}
+                  </div>
                 </div>
               </div>
               
@@ -559,57 +612,68 @@ const CreateStream = ({ username, socket }: CreateStreamProps) => {
                 )}
               </div>
               
-              <div className="mt-2 text-sm text-gray-600">
-                <div>Resolution: {streamStats.resolution}</div>
-                <div>Frame Rate: {streamStats.frameRate} fps</div>
-              </div>
-            </div>
-            
-            <div className="flex flex-wrap gap-2 mb-4">
-              <button
-                onClick={toggleVideo}
-                className={`flex items-center py-2 px-4 rounded-lg transition ${
-                  videoEnabled ? 'bg-gray-200 hover:bg-gray-300' : 'bg-red-100 text-red-700 hover:bg-red-200'
-                }`}
-              >
-                {videoEnabled ? 'Disable Video' : 'Enable Video'}
-              </button>
-              
-              <button
-                onClick={toggleAudio}
-                className={`flex items-center py-2 px-4 rounded-lg transition ${
-                  audioEnabled ? 'bg-gray-200 hover:bg-gray-300' : 'bg-red-100 text-red-700 hover:bg-red-200'
-                }`}
-              >
-                {audioEnabled ? 'Disable Audio' : 'Enable Audio'}
-              </button>
-              
-              <button
-                onClick={restartVideo}
-                className="flex items-center py-2 px-4 bg-gray-200 rounded-lg hover:bg-gray-300 transition"
-              >
-                Restart Video
-              </button>
-            </div>
-            
-            <div className="flex justify-between">
-              <button
-                onClick={stopStream}
-                className="bg-red-600 text-white py-2 px-6 rounded-lg hover:bg-red-700 transition"
-              >
-                Stop Streaming
-              </button>
-              
-              <div className="text-gray-600">
-                Share this link with viewers:
-                <div className="font-mono bg-gray-100 p-2 rounded mt-1">
-                  {window.location.origin}/view/{streamId}
+              <div className="p-4">
+                <div className="mb-2 text-sm text-gray-600">
+                  <div>Resolution: {streamStats.resolution}</div>
+                  <div>Frame Rate: {streamStats.frameRate} fps</div>
+                </div>
+                
+                <div className="flex flex-wrap gap-2 mb-4">
+                  <button
+                    onClick={toggleVideo}
+                    className={`flex items-center py-2 px-4 rounded-lg transition ${
+                      videoEnabled ? 'bg-gray-200 hover:bg-gray-300' : 'bg-red-100 text-red-700 hover:bg-red-200'
+                    }`}
+                  >
+                    {videoEnabled ? 'Disable Video' : 'Enable Video'}
+                  </button>
+                  
+                  <button
+                    onClick={toggleAudio}
+                    className={`flex items-center py-2 px-4 rounded-lg transition ${
+                      audioEnabled ? 'bg-gray-200 hover:bg-gray-300' : 'bg-red-100 text-red-700 hover:bg-red-200'
+                    }`}
+                  >
+                    {audioEnabled ? 'Disable Audio' : 'Enable Audio'}
+                  </button>
+                  
+                  <button
+                    onClick={restartVideo}
+                    className="flex items-center py-2 px-4 bg-gray-200 rounded-lg hover:bg-gray-300 transition"
+                  >
+                    Restart Video
+                  </button>
+                </div>
+                
+                <div className="flex justify-between items-center">
+                  <button
+                    onClick={stopStream}
+                    className="bg-red-600 text-white py-2 px-6 rounded-lg hover:bg-red-700 transition"
+                  >
+                    Stop Streaming
+                  </button>
+                  
+                  <div className="text-gray-600 text-sm">
+                    Share link: 
+                    <span className="font-mono bg-gray-100 p-1 rounded ml-1">
+                      {window.location.origin}/view/{streamId}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        )}
-      </div>
+          
+          {/* Chat component for the streamer */}
+          <div className="w-full lg:w-96 h-[500px]">
+            <Chat 
+              username={username}
+              streamId={streamId}
+              socket={socket}
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

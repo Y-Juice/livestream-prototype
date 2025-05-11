@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Socket } from 'socket.io-client'
+import Chat from './Chat'
 
 interface ViewStreamProps {
   username: string
@@ -241,18 +242,29 @@ const ViewStream = ({ username, socket }: ViewStreamProps) => {
     socket.on('stream-ended', handleStreamEnded)
     socket.on('error', handleError)
 
-    // Cleanup on unmount
+    // Cleanup on unmount or when leaving the page
     return () => {
       console.log('Cleaning up ViewStream component')
-      socket.off('stream-not-found', handleStreamNotFound)
-      socket.off('offer', handleOffer)
-      socket.off('ice-candidate', handleIceCandidate)
-      socket.off('stream-ended', handleStreamEnded)
-      socket.off('error', handleError)
       
-      clearTimeout(initialConnectionTimeout)
+      // Leave the stream when component unmounts
+      if (streamId) {
+        socket.emit('leave-stream')
+      }
       
-      // Clear any pending timeouts
+      if (peerConnectionRef.current) {
+        peerConnectionRef.current.close()
+        peerConnectionRef.current = null
+      }
+      
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = null
+      }
+      
+      if (remoteStreamRef.current) {
+        remoteStreamRef.current.getTracks().forEach(track => track.stop())
+        remoteStreamRef.current = null
+      }
+      
       if (playAttemptTimeoutRef.current) {
         clearTimeout(playAttemptTimeoutRef.current)
       }
@@ -260,35 +272,8 @@ const ViewStream = ({ username, socket }: ViewStreamProps) => {
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current)
       }
-      
-      // Close peer connection
-      if (peerConnectionRef.current) {
-        try {
-          if (peerConnectionRef.current.signalingState !== 'closed') {
-            peerConnectionRef.current.getSenders().forEach(sender => {
-              if (sender.track) {
-                sender.track.stop()
-              }
-            })
-            peerConnectionRef.current.close()
-            console.log('Peer connection closed')
-          }
-        } catch (err) {
-          console.error('Error closing peer connection:', err)
-        }
-        peerConnectionRef.current = null
-      }
-      
-      // Clear video source
-      if (remoteVideoRef.current) {
-        remoteVideoRef.current.srcObject = null
-        console.log('Cleared video source')
-      }
-      
-      // Clear remote stream
-      remoteStreamRef.current = null
     }
-  }, [socket, streamId, username, navigate])
+  }, [streamId, socket])
 
   const handleOfferInternal = async (broadcasterId: string, offer: RTCSessionDescriptionInit) => {
     try {
@@ -624,100 +609,78 @@ const ViewStream = ({ username, socket }: ViewStreamProps) => {
     }
   }
 
+  // Handle going back to home or leaving the stream
+  const handleLeaveStream = () => {
+    // Notify server that we're leaving the stream
+    if (streamId) {
+      socket.emit('leave-stream')
+    }
+    navigate('/')
+  }
+
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <h1 className="text-2xl font-bold mb-4">
-          {broadcaster ? `${broadcaster}'s Stream` : 'Joining Stream...'}
-        </h1>
-        
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-            {error}
-          </div>
-        )}
-        
-        <div className="mb-4">
-          <div className="mb-2 flex items-center justify-between">
-            <div>
-              {isConnected && (
-                <span className="inline-block bg-red-500 text-white text-sm px-2 py-1 rounded-full mr-2">
-                  LIVE
-                </span>
-              )}
-              <span className="text-gray-600">
-                Connection: {connectionState}
-                {isConnected && ` | ${tracksReceived.video ? 'Video' : 'No Video'} | ${tracksReceived.audio ? 'Audio' : 'No Audio'}`}
-              </span>
+    <div className="flex flex-col md:flex-row gap-4">
+      <div className="flex-1">
+        <div className="relative bg-gray-800 rounded-lg shadow-md overflow-hidden">
+          {error && (
+            <div className="absolute inset-0 flex items-center justify-center z-10">
+              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded shadow-md">
+                {error}
+              </div>
             </div>
-            <button 
-              onClick={handleRefreshVideo}
-              className="text-sm bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded"
-            >
-              Refresh Video
-            </button>
-          </div>
+          )}
           
-          <div 
-            ref={videoContainerRef}
-            className="bg-black rounded-lg overflow-hidden aspect-video relative cursor-pointer" 
-            onClick={handleVideoClick}
-          >
-            <video
+          <div className="relative" ref={videoContainerRef}>
+            <video 
               ref={remoteVideoRef}
+              className={`w-full h-auto transition-opacity duration-300 ${videoVisible ? 'opacity-100' : 'opacity-0'}`}
               autoPlay
               playsInline
-              controls
-              muted={false}
-              style={{ 
-                display: videoVisible ? 'block' : 'none',
-                width: '100%',
-                height: '100%',
-                objectFit: 'contain'
-              }}
+              onClick={handleVideoClick}
             />
             
-            {(!isConnected || !videoVisible) && !error && (
-              <div className="absolute inset-0 flex items-center justify-center text-white">
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white mx-auto mb-2"></div>
-                  <p>Connecting to stream...</p>
-                  {isConnected && !videoVisible && (
-                    <button 
-                      onClick={handleVideoClick}
-                      className="mt-4 bg-indigo-600 text-white py-1 px-4 rounded-lg hover:bg-indigo-700 transition"
-                    >
-                      Click to Play
-                    </button>
-                  )}
+            {!isConnected && !error && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="bg-black bg-opacity-70 p-4 rounded text-white">
+                  Connecting to stream...
                 </div>
               </div>
             )}
           </div>
-        </div>
-        
-        <div className="flex justify-center space-x-4">
-          <button
-            onClick={() => navigate('/')}
-            className="bg-gray-600 text-white py-2 px-6 rounded-lg hover:bg-gray-700 transition"
-          >
-            Back to Streams
-          </button>
           
-          <button
-            onClick={handleRefreshVideo}
-            className="bg-indigo-600 text-white py-2 px-6 rounded-lg hover:bg-indigo-700 transition"
-          >
-            Refresh Stream
-          </button>
-          
-          <button
-            onClick={handleRestartConnection}
-            className="bg-yellow-600 text-white py-2 px-6 rounded-lg hover:bg-yellow-700 transition"
-          >
-            Restart Connection
-          </button>
+          <div className="p-4 bg-gray-900 text-white">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold">
+                {broadcaster ? `${broadcaster}'s stream` : 'Live Stream'}
+              </h2>
+              <button
+                onClick={handleLeaveStream}
+                className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm"
+              >
+                Leave Stream
+              </button>
+            </div>
+            <div className="flex justify-between items-center mt-2">
+              <div className="text-sm text-gray-400">
+                {connectionState === 'connected' ? 'Connected' : 'Connecting...'}
+              </div>
+              <button 
+                className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm"
+                onClick={handleRefreshVideo}
+              >
+                Refresh Video
+              </button>
+            </div>
+          </div>
         </div>
+      </div>
+      
+      <div className="w-full md:w-96 h-[500px]">
+        <Chat 
+          username={username}
+          streamId={streamId || ''}
+          socket={socket}
+        />
       </div>
     </div>
   )

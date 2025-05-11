@@ -29,9 +29,16 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/livestrea
   .then(() => console.log('Connected to MongoDB'))
   .catch(err => console.error('MongoDB connection error:', err));
 
-// Store active streams and users
+// Store active streams and users - limit the size to avoid memory overflow
 const streams = new Map(); // streamId -> { broadcaster, viewers: Set<socketId> }
 const users = new Map();   // socketId -> { username, streamId, role }
+// Store chat messages for each stream - limit the size to avoid memory overflow
+const streamMessages = new Map(); // streamId -> Array<{username, message, timestamp}>
+
+// Maximum number of streams and users to prevent memory issues
+const MAX_STREAMS = 100;
+const MAX_USERS = 200;
+const MAX_MESSAGES_PER_STREAM = 50; // Reduced from 100 to 50 for memory optimization
 
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
@@ -157,13 +164,45 @@ app.get('/api/profile', auth, async (req, res) => {
   });
 });
 
+// Helper function to enforce limits
+const enforceLimits = () => {
+  // Limit the number of active streams
+  if (streams.size > MAX_STREAMS) {
+    console.log(`Enforcing stream limit: ${streams.size} streams, max allowed is ${MAX_STREAMS}`);
+    // Remove oldest streams based on creation time
+    const streamsArray = Array.from(streams.entries());
+    streamsArray.sort((a, b) => a[1].createdAt - b[1].createdAt);
+    const streamsToRemove = streamsArray.slice(0, streamsArray.length - MAX_STREAMS);
+    
+    for (const [streamId, _] of streamsToRemove) {
+      streams.delete(streamId);
+      streamMessages.delete(streamId);
+      console.log(`Removed old stream: ${streamId} due to maximum streams limit`);
+    }
+  }
+  
+  // Limit the number of users
+  if (users.size > MAX_USERS) {
+    console.log(`Enforcing user limit: ${users.size} users, max allowed is ${MAX_USERS}`);
+    // Remove oldest users (might be less optimal but prevents memory issues)
+    const usersToRemove = Array.from(users.keys()).slice(0, users.size - MAX_USERS);
+    for (const socketId of usersToRemove) {
+      users.delete(socketId);
+      console.log(`Removed inactive user with socket ID: ${socketId} due to maximum users limit`);
+    }
+  }
+};
+
+// Run cleanup and limit enforcement every minute
+setInterval(() => {
+  cleanupDisconnectedUsers();
+  enforceLimits();
+}, 60000);
+
 // Function to log the current state of streams and users
 const logState = () => {
   console.log('\n--- Current State ---');
-  console.log('Active Streams:');
-  streams.forEach((stream, streamId) => {
-    console.log(`  Stream ${streamId} by ${stream.broadcaster}: ${stream.viewers.size} viewers`);
-  });
+  console.log(`Active Streams: ${streams.size}`);
   console.log(`Total Users: ${users.size}`);
   console.log('-------------------\n');
 };
@@ -237,9 +276,6 @@ const cleanupDisconnectedUsers = () => {
   }
 };
 
-// Run cleanup every 30 seconds
-setInterval(cleanupDisconnectedUsers, 30000);
-
 // Socket.io connection handling
 io.on('connection', (socket) => {
   console.log(`User connected: ${socket.id}`);
@@ -290,6 +326,9 @@ io.on('connection', (socket) => {
         user.role = 'broadcaster';
         user.streamId = streamId;
         
+        // Make sure the broadcaster is in the stream room for chat
+        socket.join(streamId);
+        
         // Notify broadcaster of current viewer count
         socket.emit('viewer-count', { count: existingStream.viewers.size });
         return;
@@ -299,15 +338,41 @@ io.on('connection', (socket) => {
       }
     }
     
+    // Enforce limits before creating a new stream
+    enforceLimits();
+    
     // Create new stream
     streams.set(streamId, {
       broadcaster: user.username,
-      viewers: new Set()
+      viewers: new Set(),
+      createdAt: Date.now() // Add creation timestamp for stream age tracking
     });
     
     // Update user info
     user.role = 'broadcaster';
     user.streamId = streamId;
+    
+    // Join the stream room for chat
+    socket.join(streamId);
+    
+    // Create a welcome message in the chat
+    const welcomeMessage = {
+      username: 'System',
+      message: `Stream started by ${user.username}`,
+      timestamp: Date.now(),
+      isSystem: true
+    };
+    
+    // Initialize chat messages for this stream if not already done
+    if (!streamMessages.has(streamId)) {
+      streamMessages.set(streamId, []);
+    }
+    
+    // Add welcome message to chat history
+    streamMessages.get(streamId).push(welcomeMessage);
+    
+    // Emit the welcome message to the room (just the broadcaster at this point)
+    io.to(streamId).emit('chat-message', welcomeMessage);
     
     console.log(`Stream started: ${streamId} by ${user.username}`);
     logState();
@@ -317,6 +382,82 @@ io.on('connection', (socket) => {
       streamId,
       broadcaster: user.username,
       viewerCount: 0
+    });
+  });
+  
+  // Handle chat messages
+  socket.on('send-chat-message', ({ streamId, message }) => {
+    const user = users.get(socket.id);
+    
+    if (!user) {
+      socket.emit('error', { message: 'User not registered' });
+      return;
+    }
+    
+    // Check if stream exists
+    if (!streams.has(streamId)) {
+      socket.emit('error', { message: 'Stream not found' });
+      return;
+    }
+    
+    // Create chat message
+    const chatMessage = {
+      username: user.username,
+      message,
+      timestamp: Date.now()
+    };
+    
+    // Store the message in memory
+    if (!streamMessages.has(streamId)) {
+      streamMessages.set(streamId, []);
+    }
+    
+    // Add to message history (keep only MAX_MESSAGES_PER_STREAM messages)
+    const messages = streamMessages.get(streamId);
+    messages.push(chatMessage);
+    if (messages.length > MAX_MESSAGES_PER_STREAM) {
+      messages.shift(); // Remove oldest message if over limit
+    }
+    
+    console.log(`Chat message from ${user.username} in stream ${streamId}: ${message}`);
+    
+    // Broadcast to all viewers and the broadcaster
+    io.to(streamId).emit('chat-message', chatMessage);
+  });
+  
+  // Get chat history for a stream
+  socket.on('get-chat-messages', ({ streamId }) => {
+    console.log(`Chat history requested for stream: ${streamId} by socket: ${socket.id}`);
+    
+    // Check if stream exists
+    if (!streams.has(streamId)) {
+      socket.emit('error', { message: 'Stream not found' });
+      return;
+    }
+    
+    // Get the stream info
+    const stream = streams.get(streamId);
+    
+    // Get the user
+    const user = users.get(socket.id);
+    
+    // Join the stream room if not already in it
+    // This ensures the user (especially broadcaster) is in the room to receive messages
+    if (user && user.streamId === streamId && !socket.rooms.has(streamId)) {
+      console.log(`Socket ${socket.id} joining room for stream: ${streamId}`);
+      socket.join(streamId);
+    }
+    
+    // Send chat history with broadcaster info
+    // Limit the number of messages sent to reduce payload size
+    const allMessages = streamMessages.get(streamId) || [];
+    // Only send the most recent 20 messages to reduce payload size
+    const messages = allMessages.slice(Math.max(0, allMessages.length - 20));
+    
+    console.log(`Sending ${messages.length} of ${allMessages.length} chat messages to socket: ${socket.id}`);
+    socket.emit('chat-messages', { 
+      messages,
+      broadcaster: stream.broadcaster
     });
   });
   
@@ -351,8 +492,14 @@ io.on('connection', (socket) => {
     // Add viewer to stream
     stream.viewers.add(socket.id);
     
+    // Add socket to the stream room for chat
+    socket.join(streamId);
+    
     console.log(`User ${username} joined stream ${streamId}`);
     logState();
+    
+    // Notify everyone in the stream that a new viewer joined
+    io.to(streamId).emit('viewer-joined', { username: user.username });
     
     // Find the broadcaster socket
     const broadcasterSocket = Array.from(io.sockets.sockets.values())
@@ -404,6 +551,9 @@ io.on('connection', (socket) => {
     const user = users.get(socket.id);
     
     if (user && user.streamId) {
+      // Leave the stream room for chat
+      socket.leave(user.streamId);
+      
       if (user.role === 'viewer') {
         // Remove viewer from stream
         const stream = streams.get(user.streamId);
@@ -424,8 +574,28 @@ io.on('connection', (socket) => {
             // Notify broadcaster of viewer count update
             broadcasterSocket.emit('viewer-count', { count: stream.viewers.size });
           }
+          
+          // Notify everyone in the stream that a viewer left
+          io.to(user.streamId).emit('viewer-left', { username: user.username });
         }
       } else if (user.role === 'broadcaster') {
+        // Create stream ended message
+        const streamEndedMessage = {
+          username: 'System',
+          message: `Stream ended by ${user.username}`,
+          timestamp: Date.now(),
+          isSystem: true
+        };
+        
+        // Add to message history if the stream exists
+        const streamId = user.streamId;
+        if (streamMessages.has(streamId)) {
+          streamMessages.get(streamId).push(streamEndedMessage);
+        }
+        
+        // Send the message to all viewers
+        io.to(streamId).emit('chat-message', streamEndedMessage);
+        
         // End the stream
         const stream = streams.get(user.streamId);
         if (stream) {
@@ -461,8 +631,11 @@ io.on('connection', (socket) => {
     if (user) {
       console.log(`User disconnected: ${user.username} (${socket.id})`);
       
-      // Handle as if user left the stream
+      // Leave any rooms
       if (user.streamId) {
+        socket.leave(user.streamId);
+        
+        // Handle as if user left the stream
         if (user.role === 'viewer') {
           // Remove viewer from stream
           const stream = streams.get(user.streamId);
@@ -480,8 +653,28 @@ io.on('connection', (socket) => {
               // Notify broadcaster of viewer count update
               broadcasterSocket.emit('viewer-count', { count: stream.viewers.size });
             }
+            
+            // Notify everyone in the stream that a viewer left
+            io.to(user.streamId).emit('viewer-left', { username: user.username });
           }
         } else if (user.role === 'broadcaster') {
+          // Create stream ended message for unexpected disconnect
+          const streamEndedMessage = {
+            username: 'System',
+            message: `Stream ended unexpectedly (${user.username} disconnected)`,
+            timestamp: Date.now(),
+            isSystem: true
+          };
+          
+          // Add to message history if the stream exists
+          const streamId = user.streamId;
+          if (streamMessages.has(streamId)) {
+            streamMessages.get(streamId).push(streamEndedMessage);
+          }
+          
+          // Send the message to all viewers
+          io.to(streamId).emit('chat-message', streamEndedMessage);
+          
           // End the stream
           const stream = streams.get(user.streamId);
           if (stream) {
