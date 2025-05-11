@@ -22,6 +22,7 @@ const Chat = ({ username, streamId, socket }: ChatProps) => {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
   const [isChatFocused, setIsChatFocused] = useState(true)
+  const [broadcaster, setBroadcaster] = useState<string>('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const emojiButtonRef = useRef<HTMLButtonElement>(null)
   const chatContainerRef = useRef<HTMLDivElement>(null)
@@ -97,19 +98,23 @@ const Chat = ({ username, streamId, socket }: ChatProps) => {
       if (!latestMessage.isSystem) {
         setUnreadCount(prevCount => prevCount + 1)
       }
-      
-      // Update document title with unread count
-      if (unreadCount > 0) {
-        document.title = `(${unreadCount}) Chat - Livestream`
-      }
+    }
+  }, [messages, isChatFocused])
+  
+  // Handle document title updates separately to avoid render loops
+  useEffect(() => {
+    // Update document title with unread count
+    if (unreadCount > 0) {
+      document.title = `(${unreadCount}) Chat - Livestream`
+    } else {
+      document.title = 'Livestream'
     }
     
-    // Reset document title when chat gains focus
+    // Reset unread count when chat gains focus
     if (isChatFocused && unreadCount > 0) {
-      document.title = 'Livestream'
       setUnreadCount(0)
     }
-  }, [messages, isChatFocused, unreadCount])
+  }, [unreadCount, isChatFocused])
   
   // Handle clicking outside emoji picker to close it
   useEffect(() => {
@@ -132,34 +137,45 @@ const Chat = ({ username, streamId, socket }: ChatProps) => {
   
   // Load initial chat messages and setup event listeners
   useEffect(() => {
-    console.log('Loading chat for stream:', streamId)
+    console.log('Loading chat for stream:', streamId, 'as user:', username)
     
-    const handleChatMessages = ({ messages }: { messages: ChatMessage[] }) => {
-      console.log('Received chat history:', messages.length, 'messages')
+    const handleChatMessages = ({ messages, broadcaster }: { messages: ChatMessage[], broadcaster?: string }) => {
+      console.log(`Received chat history for stream ${streamId}:`, messages.length, 'messages')
+      if (messages.length > 0) {
+        console.log('First message:', messages[0])
+        console.log('Last message:', messages[messages.length - 1])
+      }
+      
+      // Store broadcaster info if provided
+      if (broadcaster) {
+        console.log(`Broadcaster for stream ${streamId} is:`, broadcaster)
+        setBroadcaster(broadcaster)
+      }
+      
       setMessages(messages)
     }
     
     const handleChatMessage = (message: ChatMessage) => {
-      console.log('Received new chat message:', message)
+      console.log(`Received new chat message in stream ${streamId}:`, message)
       setMessages(prev => [...prev, message])
     }
     
-    const handleViewerJoined = ({ username }: { username: string }) => {
-      console.log('Viewer joined:', username)
+    const handleViewerJoined = ({ username: joinedUser }: { username: string }) => {
+      console.log(`Viewer joined stream ${streamId}:`, joinedUser)
       const systemMessage: ChatMessage = {
         username: 'System',
-        message: `${username} joined the stream`,
+        message: `${joinedUser} joined the stream`,
         timestamp: Date.now(),
         isSystem: true
       }
       setMessages(prev => [...prev, systemMessage])
     }
     
-    const handleViewerLeft = ({ username }: { username: string }) => {
-      console.log('Viewer left:', username)
+    const handleViewerLeft = ({ username: leftUser }: { username: string }) => {
+      console.log(`Viewer left stream ${streamId}:`, leftUser)
       const systemMessage: ChatMessage = {
         username: 'System',
-        message: `${username} left the stream`,
+        message: `${leftUser} left the stream`,
         timestamp: Date.now(),
         isSystem: true
       }
@@ -167,14 +183,15 @@ const Chat = ({ username, streamId, socket }: ChatProps) => {
     }
     
     const handleError = ({ message }: { message: string }) => {
-      console.error('Chat error:', message)
+      console.error(`Chat error for stream ${streamId}:`, message)
       setError(message)
       
       // Clear error after 5 seconds
       setTimeout(() => setError(''), 5000)
     }
     
-    // Request chat history
+    // Request chat history only once when component mounts
+    console.log(`Requesting chat history for stream ${streamId}`)
     socket.emit('get-chat-messages', { streamId })
     
     // Setup event listeners
@@ -186,13 +203,14 @@ const Chat = ({ username, streamId, socket }: ChatProps) => {
     
     // Cleanup
     return () => {
+      console.log(`Cleaning up chat component for stream ${streamId}`)
       socket.off('chat-messages', handleChatMessages)
       socket.off('chat-message', handleChatMessage)
       socket.off('viewer-joined', handleViewerJoined)
       socket.off('viewer-left', handleViewerLeft)
       socket.off('error', handleError)
     }
-  }, [streamId, socket])
+  }, [streamId, socket, username])
   
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault()
@@ -227,6 +245,11 @@ const Chat = ({ username, streamId, socket }: ChatProps) => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   }
   
+  // Check if a username is the broadcaster
+  const isBroadcaster = (msgUsername: string) => {
+    return broadcaster && msgUsername === broadcaster
+  }
+  
   return (
     <div ref={chatContainerRef} className="bg-white rounded-lg shadow-md flex flex-col h-full">
       <div className="p-3 border-b border-gray-200 flex justify-between items-center">
@@ -257,9 +280,26 @@ const Chat = ({ username, streamId, socket }: ChatProps) => {
                   </span>
                 </div>
               ) : (
-                <div className={`max-w-[80%] rounded-lg p-2 ${msg.username === username ? 'bg-blue-100' : 'bg-gray-100'}`}>
+                <div 
+                  className={`
+                    max-w-[80%] rounded-lg p-2 
+                    ${msg.username === username 
+                      ? 'bg-blue-100' 
+                      : isBroadcaster(msg.username)
+                        ? 'bg-purple-100 border border-purple-200' // Special style for broadcaster
+                        : 'bg-gray-100'
+                    }
+                  `}
+                >
                   <div className="flex justify-between items-center mb-1">
-                    <span className="font-semibold text-sm">{msg.username}</span>
+                    <span className={`font-semibold text-sm ${isBroadcaster(msg.username) ? 'text-purple-700 flex items-center' : ''}`}>
+                      {isBroadcaster(msg.username) && (
+                        <span className="inline-block bg-purple-600 text-white text-xs px-1 mr-1 rounded">
+                          HOST
+                        </span>
+                      )}
+                      {msg.username}
+                    </span>
                     <span className="text-xs text-gray-500">{formatTime(msg.timestamp)}</span>
                   </div>
                   <p className="text-sm break-words">{msg.message}</p>
