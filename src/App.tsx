@@ -2,6 +2,9 @@ import { useState, useEffect, useRef } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { io, Socket } from 'socket.io-client'
 import './App.css'
+import Login from './components/auth/Login'
+import Register from './components/auth/Register'
+import ProtectedRoute from './components/auth/ProtectedRoute'
 
 // Components
 import Home from './components/Home'
@@ -142,16 +145,20 @@ function App() {
           )}
           
           <Routes>
-            <Route 
-              path="/" 
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route
+              path="/"
               element={
-                <Home 
-                  username={username}
-                  isLoggedIn={isLoggedIn}
-                  onLogin={handleLogin}
-                  activeStreams={activeStreams}
-                />
-              } 
+                <ProtectedRoute>
+                  <Home 
+                    username={username}
+                    isLoggedIn={isLoggedIn}
+                    onLogin={handleLogin}
+                    activeStreams={activeStreams}
+                  />
+                </ProtectedRoute>
+              }
             />
             <Route 
               path="/create" 
@@ -169,6 +176,7 @@ function App() {
                   : <Navigate to="/" />
               } 
             />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
       </div>

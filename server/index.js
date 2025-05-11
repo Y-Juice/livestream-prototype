@@ -5,6 +5,10 @@ import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
+import mongoose from 'mongoose';
+import jwt from 'jsonwebtoken';
+import User from './models/User.js';
+import auth from './middleware/auth.js';
 
 dotenv.config();
 
@@ -20,13 +24,138 @@ const io = new Server(server, {
   }
 });
 
+// Connect to MongoDB
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/livestream-app')
+  .then(() => console.log('Connected to MongoDB'))
+  .catch(err => console.error('MongoDB connection error:', err));
+
 // Store active streams and users
 const streams = new Map(); // streamId -> { broadcaster, viewers: Set<socketId> }
 const users = new Map();   // socketId -> { username, streamId, role }
 
-app.use(cors());
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' 
+    ? process.env.FRONTEND_URL 
+    : 'http://localhost:5173',
+  credentials: true
+}));
+
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../dist')));
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ error: 'Something went wrong!' });
+});
+
+// Authentication routes
+app.post('/api/register', async (req, res) => {
+  try {
+    const { email, username, password } = req.body;
+    
+    if (!email || !username || !password) {
+      return res.status(400).json({ 
+        error: 'Please provide all required fields' 
+      });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ 
+        error: 'Password must be at least 6 characters long' 
+      });
+    }
+    
+    // Check if user already exists
+    const existingUser = await User.findOne({ 
+      $or: [{ email }, { username }] 
+    });
+    
+    if (existingUser) {
+      return res.status(400).json({ 
+        error: 'User with this email or username already exists' 
+      });
+    }
+    
+    // Create new user
+    const user = new User({ email, username, password });
+    await user.save();
+    
+    // Generate token
+    const token = jwt.sign(
+      { userId: user._id },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '7d' }
+    );
+    
+    res.status(201).json({ 
+      user: { 
+        email: user.email, 
+        username: user.username 
+      }, 
+      token 
+    });
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(400).json({ 
+      error: error.message || 'Registration failed' 
+    });
+  }
+});
+
+app.post('/api/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ 
+        error: 'Please provide email and password' 
+      });
+    }
+    
+    // Find user by email
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+    
+    // Check password
+    const isMatch = await user.comparePassword(password);
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+    
+    // Generate token
+    const token = jwt.sign(
+      { userId: user._id },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '7d' }
+    );
+    
+    res.json({ 
+      user: { 
+        email: user.email, 
+        username: user.username 
+      }, 
+      token 
+    });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(400).json({ 
+      error: error.message || 'Login failed' 
+    });
+  }
+});
+
+// Protected route example
+app.get('/api/profile', auth, async (req, res) => {
+  res.json({ 
+    user: { 
+      email: req.user.email, 
+      username: req.user.username 
+    } 
+  });
+});
 
 // Function to log the current state of streams and users
 const logState = () => {
