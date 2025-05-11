@@ -1,12 +1,21 @@
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [loginSuccess, setLoginSuccess] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Use effect to navigate after state is updated
+  useEffect(() => {
+    if (loginSuccess) {
+      navigate('/', { replace: true });
+    }
+  }, [loginSuccess, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -14,28 +23,53 @@ const Login: React.FC = () => {
     setIsLoading(true);
 
     try {
+      console.log('Attempting to login with:', { email });
+      
       const response = await fetch('/api/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ email, password }),
+        credentials: 'include',
       });
 
-      const data = await response.json();
+      // Log the response status
+      console.log('Login response status:', response.status);
+      
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonError) {
+        console.error('Error parsing JSON response:', jsonError);
+        throw new Error('Failed to parse server response');
+      }
+
+      console.log('Login response data:', data);
 
       if (!response.ok) {
         throw new Error(data.error || 'Login failed');
       }
 
+      // Login successful
+      console.log('Login successful');
+      
       // Store token in localStorage
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
-
-      // Redirect to home page
-      navigate('/');
+      localStorage.setItem('username', data.user.username);
+      
+      // Set app state
+      console.log('Redirecting to home page');
+      
+      // Force a window reload to ensure all states are refreshed
+      window.location.href = '/';
+      
+      // Alternative approach using React Router
+      // setLoginSuccess(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      console.error('Login error:', err);
+      setError(err instanceof Error ? err.message : 'An error occurred during login');
     } finally {
       setIsLoading(false);
     }

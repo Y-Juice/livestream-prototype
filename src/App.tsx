@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { io, Socket } from 'socket.io-client'
 import './App.css'
 import Login from './components/auth/Login'
@@ -14,7 +14,7 @@ import Navbar from './components/Navbar'
 
 // Create socket connection
 const createSocket = (): Socket => {
-  return io(import.meta.env.VITE_SERVER_URL || 'http://localhost:3000', {
+  return io(import.meta.env.VITE_SERVER_URL || 'http://localhost:3001', {
     reconnectionAttempts: 5,
     reconnectionDelay: 1000,
     timeout: 10000
@@ -28,9 +28,32 @@ function App() {
   const [connectionError, setConnectionError] = useState<string>('')
   
   const socketRef = useRef<Socket | null>(null)
+
+  // Check authentication status
+  const checkAuthStatus = useCallback(() => {
+    const token = localStorage.getItem('token')
+    const storedUsername = localStorage.getItem('username')
+    const storedUser = localStorage.getItem('user')
+    
+    console.log('Checking auth status:', { hasToken: !!token, hasUsername: !!storedUsername })
+    
+    if (token && storedUsername) {
+      console.log('User is authenticated')
+      setUsername(storedUsername)
+      setIsLoggedIn(true)
+      return true
+    } else {
+      console.log('User is not authenticated')
+      setIsLoggedIn(false)
+      return false
+    }
+  }, [])
   
   // Initialize socket connection
   useEffect(() => {
+    // Check authentication first
+    const isAuthenticated = checkAuthStatus()
+    
     if (!socketRef.current) {
       socketRef.current = createSocket()
       
@@ -42,6 +65,7 @@ function App() {
         // Register user if already logged in
         const storedUsername = localStorage.getItem('username')
         if (storedUsername) {
+          console.log('Registering user with socket:', storedUsername)
           socketRef.current?.emit('register', { username: storedUsername })
         }
         
@@ -70,40 +94,43 @@ function App() {
         socketRef.current = null
       }
     }
-  }, [])
+  }, [checkAuthStatus])
 
   // Handle socket events for streams
   useEffect(() => {
     if (!socketRef.current) return
     
     const handleActiveStreams = (streams: any[]) => {
+      console.log('Received active streams:', streams)
       setActiveStreams(streams)
     }
     
     const handleStreamStarted = () => {
       // Refresh active streams when a new stream starts
+      console.log('Stream started event received, refreshing streams')
       socketRef.current?.emit('get-active-streams')
     }
     
     const handleStreamEnded = () => {
       // Refresh active streams when a stream ends
+      console.log('Stream ended event received, refreshing streams')
       socketRef.current?.emit('get-active-streams')
     }
     
-    // Load username from localStorage if available
-    const storedUsername = localStorage.getItem('username')
-    if (storedUsername) {
-      setUsername(storedUsername)
-      setIsLoggedIn(true)
-      socketRef.current.emit('register', { username: storedUsername })
-    }
+    // Load user information from localStorage if available
+    checkAuthStatus()
 
     // Socket event listeners
     socketRef.current.on('active-streams', handleActiveStreams)
     socketRef.current.on('stream-started', handleStreamStarted)
     socketRef.current.on('stream-ended', handleStreamEnded)
+    socketRef.current.on('new-stream', () => {
+      console.log('New stream event received, refreshing streams')
+      socketRef.current?.emit('get-active-streams')
+    })
 
     // Request active streams on initial load
+    console.log('Requesting active streams on component mount')
     socketRef.current.emit('get-active-streams')
 
     // Cleanup on unmount
@@ -112,11 +139,13 @@ function App() {
         socketRef.current.off('active-streams', handleActiveStreams)
         socketRef.current.off('stream-started', handleStreamStarted)
         socketRef.current.off('stream-ended', handleStreamEnded)
+        socketRef.current.off('new-stream')
       }
     }
-  }, [])
+  }, [checkAuthStatus])
 
   const handleLogin = (username: string) => {
+    console.log('Setting login state for:', username)
     setUsername(username)
     setIsLoggedIn(true)
     localStorage.setItem('username', username)
@@ -127,6 +156,10 @@ function App() {
     setUsername('')
     setIsLoggedIn(false)
     localStorage.removeItem('username')
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    // After logout, user will be redirected to login page because of ProtectedRoute
+    window.location.href = '/login'
   }
 
   return (

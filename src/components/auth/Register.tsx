@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 
 const Register: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -7,7 +7,16 @@ const Register: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [registerSuccess, setRegisterSuccess] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Use effect to navigate after state is updated
+  useEffect(() => {
+    if (registerSuccess) {
+      navigate('/', { replace: true });
+    }
+  }, [registerSuccess, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -15,28 +24,53 @@ const Register: React.FC = () => {
     setIsLoading(true);
 
     try {
+      console.log('Attempting to register with:', { email, username });
+      
       const response = await fetch('/api/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ email, username, password }),
+        credentials: 'include',
       });
 
-      const data = await response.json();
+      // Log the response status
+      console.log('Registration response status:', response.status);
+      
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonError) {
+        console.error('Error parsing JSON response:', jsonError);
+        throw new Error('Failed to parse server response');
+      }
+
+      console.log('Registration response data:', data);
 
       if (!response.ok) {
         throw new Error(data.error || 'Registration failed');
       }
 
+      // Registration successful
+      console.log('Registration successful');
+      
       // Store token in localStorage
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
-
-      // Redirect to home page
-      navigate('/');
+      localStorage.setItem('username', data.user.username);
+      
+      // Set app state
+      console.log('Redirecting to home page');
+      
+      // Force a window reload to ensure all states are refreshed
+      window.location.href = '/';
+      
+      // Alternative approach using React Router
+      // setRegisterSuccess(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      console.error('Registration error:', err);
+      setError(err instanceof Error ? err.message : 'An error occurred during registration');
     } finally {
       setIsLoading(false);
     }
