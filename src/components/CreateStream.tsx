@@ -139,6 +139,27 @@ const CreateStream = ({ username, socket }: CreateStreamProps) => {
     }
   }
 
+  // Test stream creation (without media)
+  const createTestStream = () => {
+    try {
+      const testStreamId = `test-${uuidv4().substring(0, 5)}`;
+      console.log(`Creating test stream with ID: ${testStreamId}`);
+      
+      // Notify server of test stream creation
+      socket.emit('start-stream', { streamId: testStreamId });
+      
+      // Set stream ID but don't initialize media
+      setStreamId(testStreamId);
+      setIsStreaming(true);
+      
+      // Alert the user
+      alert(`Test stream created with ID: ${testStreamId}. This stream won't have media but will show up in the stream list.`);
+    } catch (err) {
+      console.error('Error creating test stream:', err);
+      setError('Failed to create test stream');
+    }
+  };
+
   // Stop streaming
   const stopStream = () => {
     // Stop all tracks
@@ -445,17 +466,23 @@ const CreateStream = ({ username, socket }: CreateStreamProps) => {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <h1 className="text-2xl font-bold mb-4">Create Stream</h1>
+      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+        {/* Header */}
+        <div className="p-6 bg-gray-50 border-b">
+          <h1 className="text-2xl font-bold">Create Stream</h1>
+          <p className="text-gray-600 mt-1">
+            {isStreaming ? 'You are live!' : 'Start streaming to your audience'}
+          </p>
+        </div>
         
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-            {error}
-          </div>
-        )}
-        
+        {/* Stream form */}
         {!isStreaming ? (
-          <div>
+          <div className="p-6">
+            {error && (
+              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                {error}
+              </div>
+            )}
             <div className="mb-4">
               <label htmlFor="streamId" className="block text-gray-700 mb-2">
                 Stream ID (optional)
@@ -465,17 +492,33 @@ const CreateStream = ({ username, socket }: CreateStreamProps) => {
                 id="streamId"
                 value={streamId}
                 onChange={(e) => setStreamId(e.target.value)}
-                placeholder="Leave blank for random ID"
-                className="w-full p-2 border rounded"
+                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                placeholder="Leave empty for random ID"
               />
+              <p className="text-gray-500 text-sm mt-1">
+                This will be used in the stream URL
+              </p>
             </div>
-            
-            <button
-              onClick={startStream}
-              className="bg-indigo-600 text-white py-2 px-6 rounded-lg hover:bg-indigo-700 transition"
-            >
-              Start Streaming
-            </button>
+            <div className="flex space-x-4">
+              <button
+                onClick={startStream}
+                className="bg-indigo-600 text-white py-2 px-6 rounded-lg hover:bg-indigo-700 transition"
+              >
+                Start Streaming
+              </button>
+              <button
+                onClick={() => navigate('/')}
+                className="bg-gray-200 text-gray-800 py-2 px-6 rounded-lg hover:bg-gray-300 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={createTestStream}
+                className="bg-yellow-500 text-white py-2 px-6 rounded-lg hover:bg-yellow-600 transition"
+              >
+                Create Test Stream
+              </button>
+            </div>
           </div>
         ) : (
           <div>
