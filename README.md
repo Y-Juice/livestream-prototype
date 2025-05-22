@@ -85,3 +85,5 @@ Coding with chaim. (2021, March 22). Socket IO Rooms Tutorial (Backend part 1) [
 Web Dev Simplified. (25 jul 2020). How To Create A Video Chat App With WebRTC [Video]. YouTube. https://www.youtube.com/watch?v=DvlyzDZDEq4
 
 Web Dev Simplified. (1 jun 2019). Build Real Time Chat Rooms With Node.js And Socket.io [Video]. YouTube. https://www.youtube.com/watch?v=UymGJnv-WsE
+
+https://www.assemblyai.com/docs/getting-started/transcribe-streaming-audio-from-a-microphone/typescript
