@@ -184,8 +184,11 @@ function App() {
               onClick={() => setIsTranscriptionActive(!isTranscriptionActive)}
               className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
             >
-              {isTranscriptionActive ? 'Stop Transcription' : 'Start Transcription'}
+              {isTranscriptionActive ? 'Stop Speech Recognition' : 'Start Speech Recognition'}
             </button>
+            <span className="ml-2 text-sm text-gray-600">
+              Using browser's built-in speech recognition
+            </span>
           </div>
 
           {isTranscriptionActive && <Transcription isActive={isTranscriptionActive} />}
