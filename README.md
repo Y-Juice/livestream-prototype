@@ -87,3 +87,5 @@ Web Dev Simplified. (25 jul 2020). How To Create A Video Chat App With WebRTC [V
 Web Dev Simplified. (1 jun 2019). Build Real Time Chat Rooms With Node.js And Socket.io [Video]. YouTube. https://www.youtube.com/watch?v=UymGJnv-WsE
 
 https://www.assemblyai.com/docs/getting-started/transcribe-streaming-audio-from-a-microphone/typescript
+
+https://github.com/AssemblyAI/assemblyai-node-sdk/blob/main/docs/compat.md#browser-compatibility

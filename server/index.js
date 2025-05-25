@@ -41,10 +41,10 @@ const MAX_USERS = 200;
 const MAX_MESSAGES_PER_STREAM = 50; // Reduced from 100 to 50 for memory optimization
 
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? process.env.FRONTEND_URL 
-    : 'http://localhost:5173',
-  credentials: true
+  origin: '*', // In development, allow all origins
+  methods: ['GET', 'POST', 'OPTIONS'],
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 app.use(express.json());

@@ -11,6 +11,7 @@ import Home from './components/Home'
 import CreateStream from './components/CreateStream'
 import ViewStream from './components/ViewStream'
 import Navbar from './components/Navbar'
+import Transcription from './components/Transcription'
 
 // Create socket connection
 const createSocket = (): Socket => {
@@ -26,6 +27,7 @@ function App() {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false)
   const [activeStreams, setActiveStreams] = useState<any[]>([])
   const [connectionError, setConnectionError] = useState<string>('')
+  const [isTranscriptionActive, setIsTranscriptionActive] = useState<boolean>(false)
   
   const socketRef = useRef<Socket | null>(null)
 
@@ -176,7 +178,21 @@ function App() {
               {connectionError}
             </div>
           )}
-          
+
+          <div className="mb-4">
+            <button
+              onClick={() => setIsTranscriptionActive(!isTranscriptionActive)}
+              className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+            >
+              {isTranscriptionActive ? 'Stop Speech Recognition' : 'Start Speech Recognition'}
+            </button>
+            <span className="ml-2 text-sm text-gray-600">
+              Using browser's built-in speech recognition
+            </span>
+          </div>
+
+          {isTranscriptionActive && <Transcription isActive={isTranscriptionActive} />}
+
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
