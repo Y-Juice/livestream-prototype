@@ -45,7 +45,7 @@ npm install
 1. Open a terminal and write the following command:
 ```bash
 
-    npm run dev:all
+    npm run start
 
 ```
 
