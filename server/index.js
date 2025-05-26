@@ -9,6 +9,7 @@ import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
 import User from './models/User.js';
 import auth from './middleware/auth.js';
+import fetch from 'node-fetch';
 
 dotenv.config();
 
@@ -162,6 +163,84 @@ app.get('/api/profile', auth, async (req, res) => {
       username: req.user.username 
     } 
   });
+});
+
+// Religious Citation Search API routes
+app.get('/api/search/quran', async (req, res) => {
+  try {
+    const { query, surah = 'all' } = req.query;
+    
+    if (!query) {
+      return res.status(400).json({ error: 'Search query is required' });
+    }
+    
+    const url = `https://api.alquran.cloud/v1/search/${encodeURIComponent(query)}/${surah}/en`;
+    const response = await fetch(url);
+    const data = await response.json();
+    
+    res.json(data);
+  } catch (error) {
+    console.error('Error searching Quran:', error);
+    res.status(500).json({ error: 'Failed to search Quran' });
+  }
+});
+
+app.get('/api/search/hadith', async (req, res) => {
+  try {
+    const { query } = req.query;
+    
+    if (!query) {
+      return res.status(400).json({ error: 'Search query is required' });
+    }
+    
+    // This is a placeholder for actual Hadith API integration
+    // You would need to implement the actual API call with proper authentication
+    
+    res.json({
+      code: 200,
+      data: {
+        matches: [
+          {
+            text: "This is a placeholder for Hadith search results. The actual implementation would require proper API integration.",
+            reference: "Example Hadith Reference",
+            source: "Hadith"
+          }
+        ]
+      }
+    });
+  } catch (error) {
+    console.error('Error searching Hadith:', error);
+    res.status(500).json({ error: 'Failed to search Hadith' });
+  }
+});
+
+app.get('/api/search/bible', async (req, res) => {
+  try {
+    const { query } = req.query;
+    
+    if (!query) {
+      return res.status(400).json({ error: 'Search query is required' });
+    }
+    
+    // This is a placeholder for actual Bible API integration
+    // You would need to implement the actual API call with proper authentication and API key
+    
+    res.json({
+      code: 200,
+      data: {
+        matches: [
+          {
+            text: "This is a placeholder for Bible search results. The actual implementation would require API key and authentication.",
+            reference: "Example Bible Reference",
+            source: "Bible"
+          }
+        ]
+      }
+    });
+  } catch (error) {
+    console.error('Error searching Bible:', error);
+    res.status(500).json({ error: 'Failed to search Bible' });
+  }
 });
 
 // Helper function to enforce limits

@@ -1,6 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 import { Socket } from 'socket.io-client'
-import EmojiPicker, { EmojiClickData } from 'emoji-picker-react'
+import ReligiousCitationSearch from './ReligiousCitationSearch'
+
+interface SearchResult {
+  text: string;
+  reference: string;
+  source: string;
+}
 
 interface ChatMessage {
   username: string
@@ -19,12 +25,12 @@ const Chat = ({ username, streamId, socket }: ChatProps) => {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [messageInput, setMessageInput] = useState('')
   const [error, setError] = useState<string>('')
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const [showCitationSearch, setShowCitationSearch] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
   const [isChatFocused, setIsChatFocused] = useState(true)
   const [broadcaster, setBroadcaster] = useState<string>('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const emojiButtonRef = useRef<HTMLButtonElement>(null)
+  const citationButtonRef = useRef<HTMLButtonElement>(null)
   const chatContainerRef = useRef<HTMLDivElement>(null)
   
   // Scroll to the bottom of the chat whenever new messages come in
@@ -116,16 +122,16 @@ const Chat = ({ username, streamId, socket }: ChatProps) => {
     }
   }, [unreadCount, isChatFocused])
   
-  // Handle clicking outside emoji picker to close it
+  // Handle clicking outside citation search to close it
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
-        showEmojiPicker && 
-        emojiButtonRef.current && 
-        !emojiButtonRef.current.contains(event.target as Node) &&
-        !(event.target as Element).closest('.emoji-picker-react')
+        showCitationSearch && 
+        citationButtonRef.current && 
+        !citationButtonRef.current.contains(event.target as Node) &&
+        !(event.target as Element).closest('.citation-search-container')
       ) {
-        setShowEmojiPicker(false)
+        setShowCitationSearch(false);
       }
     }
     
@@ -133,7 +139,7 @@ const Chat = ({ username, streamId, socket }: ChatProps) => {
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
     }
-  }, [showEmojiPicker])
+  }, [showCitationSearch])
   
   // Load initial chat messages and setup event listeners
   useEffect(() => {
@@ -226,17 +232,19 @@ const Chat = ({ username, streamId, socket }: ChatProps) => {
     // Clear input
     setMessageInput('')
     
-    // Close emoji picker if open
-    setShowEmojiPicker(false)
+    // Close citation search if open
+    setShowCitationSearch(false)
   }
   
-  const handleEmojiClick = (emojiData: EmojiClickData) => {
-    setMessageInput(prev => prev + emojiData.emoji)
+  // Toggle citation search
+  const toggleCitationSearch = () => {
+    setShowCitationSearch(prev => !prev)
   }
   
-  // Toggle emoji picker
-  const toggleEmojiPicker = () => {
-    setShowEmojiPicker(prev => !prev)
+  // Handle citation selection
+  const handleSelectCitation = (citation: SearchResult) => {
+    const citationText = `${citation.reference}: "${citation.text}" [${citation.source}]`;
+    setMessageInput(prev => prev + citationText);
   }
   
   // Format timestamp
@@ -312,25 +320,37 @@ const Chat = ({ username, streamId, socket }: ChatProps) => {
       </div>
       
       <form onSubmit={handleSendMessage} className="p-3 border-t border-gray-200">
+        <div className="flex items-center mb-2">
+          <button
+            type="button"
+            ref={citationButtonRef}
+            onClick={toggleCitationSearch}
+            className="bg-gray-100 hover:bg-gray-200 text-gray-700 py-1 px-3 rounded-lg text-sm flex items-center mr-2"
+          >
+            <span className="mr-1">📚</span> Religious Citation
+          </button>
+        </div>
+        
         <div className="relative">
+          {showCitationSearch && (
+            <div className="citation-search-container">
+              <ReligiousCitationSearch 
+                onSelectCitation={handleSelectCitation}
+                onClose={() => setShowCitationSearch(false)}
+              />
+            </div>
+          )}
+          
           <div className="flex space-x-2">
-            <div className="flex-1 flex relative">
+            <div className="flex-1 relative">
               <input
                 type="text"
                 value={messageInput}
                 onChange={(e) => setMessageInput(e.target.value)}
-                className="flex-1 rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
                 placeholder="Type a message..."
                 maxLength={500}
               />
-              <button
-                type="button"
-                ref={emojiButtonRef}
-                onClick={toggleEmojiPicker}
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
-              >
-                😊
-              </button>
             </div>
             <button
               type="submit"
@@ -339,18 +359,6 @@ const Chat = ({ username, streamId, socket }: ChatProps) => {
               Send
             </button>
           </div>
-          
-          {showEmojiPicker && (
-            <div className="absolute bottom-full right-0 mb-2">
-              <EmojiPicker
-                onEmojiClick={handleEmojiClick}
-                searchDisabled
-                skinTonesDisabled
-                width={300}
-                height={400}
-              />
-            </div>
-          )}
         </div>
       </form>
     </div>
