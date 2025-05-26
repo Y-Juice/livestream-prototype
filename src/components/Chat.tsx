@@ -21,6 +21,12 @@ interface ChatProps {
   socket: Socket
 }
 
+// Common offensive words to filter
+const PROFANITY_LIST = [
+  'ass', 'asshole', 'bitch', 'cunt', 'damn', 'fuck', 'shit', 'bastard',
+  'dick', 'piss', 'nigger', 'nigga', 'retard', 'faggot', 'fag', 'whore'
+];
+
 const Chat = ({ username, streamId, socket }: ChatProps) => {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [messageInput, setMessageInput] = useState('')
@@ -29,6 +35,10 @@ const Chat = ({ username, streamId, socket }: ChatProps) => {
   const [unreadCount, setUnreadCount] = useState(0)
   const [isChatFocused, setIsChatFocused] = useState(true)
   const [broadcaster, setBroadcaster] = useState<string>('')
+  const [warningCount, setWarningCount] = useState(0)
+  const [isTimedOut, setIsTimedOut] = useState(false)
+  const [timeoutEndTime, setTimeoutEndTime] = useState<number | null>(null)
+  const [timeoutRemaining, setTimeoutRemaining] = useState(0)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const citationButtonRef = useRef<HTMLButtonElement>(null)
   const chatContainerRef = useRef<HTMLDivElement>(null)
@@ -141,6 +151,28 @@ const Chat = ({ username, streamId, socket }: ChatProps) => {
     }
   }, [showCitationSearch])
   
+  // Handle timeout countdown
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout | null = null;
+    
+    if (isTimedOut && timeoutEndTime) {
+      intervalId = setInterval(() => {
+        const remaining = Math.max(0, Math.ceil((timeoutEndTime - Date.now()) / 1000));
+        setTimeoutRemaining(remaining);
+        
+        if (remaining === 0) {
+          setIsTimedOut(false);
+          setTimeoutEndTime(null);
+          if (intervalId) clearInterval(intervalId);
+        }
+      }, 1000);
+    }
+    
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [isTimedOut, timeoutEndTime]);
+  
   // Load initial chat messages and setup event listeners
   useEffect(() => {
     console.log('Loading chat for stream:', streamId, 'as user:', username)
@@ -218,10 +250,91 @@ const Chat = ({ username, streamId, socket }: ChatProps) => {
     }
   }, [streamId, socket, username])
   
+  // Check if message contains profanity
+  const containsProfanity = (message: string): boolean => {
+    const lowerMessage = message.toLowerCase();
+    const words = lowerMessage.split(/\s+/);
+    
+    // Check exact matches
+    for (const word of words) {
+      // Remove common punctuation for comparison
+      const cleanWord = word.replace(/[.,!?;:'"(){}[\]]/g, '');
+      if (PROFANITY_LIST.includes(cleanWord)) {
+        return true;
+      }
+    }
+    
+    // Check for partial matches (to catch attempts to bypass filter)
+    for (const badWord of PROFANITY_LIST) {
+      // Look for words that might contain profanity with special chars inserted
+      // e.g. "f*ck" or "f.u.c.k"
+      const regex = new RegExp(badWord.split('').join('[^a-zA-Z0-9]*'), 'i');
+      if (regex.test(lowerMessage)) {
+        return true;
+      }
+    }
+    
+    return false;
+  };
+  
+  // Handle user timeout
+  const timeoutUser = () => {
+    // Set timeout for 60 seconds (1 minute)
+    const timeoutDuration = 60 * 1000;
+    const endTime = Date.now() + timeoutDuration;
+    
+    setIsTimedOut(true);
+    setTimeoutEndTime(endTime);
+    setTimeoutRemaining(60);
+    
+    // Add system message showing timeout
+    const systemMessage: ChatMessage = {
+      username: 'System',
+      message: `${username} has been timed out for 60 seconds due to multiple violations.`,
+      timestamp: Date.now(),
+      isSystem: true
+    };
+    
+    setMessages(prev => [...prev, systemMessage]);
+    
+    // Auto reset warning count after timeout
+    setTimeout(() => {
+      setWarningCount(0);
+    }, timeoutDuration);
+  };
+  
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault()
     
     if (!messageInput.trim()) return
+    
+    // Check if user is timed out
+    if (isTimedOut) {
+      setError(`You are timed out for ${timeoutRemaining} more seconds.`);
+      return;
+    }
+    
+    // Check for profanity
+    if (containsProfanity(messageInput)) {
+      const newWarningCount = warningCount + 1;
+      setWarningCount(newWarningCount);
+      
+      // Create warning message
+      let warningMessage: string;
+      
+      if (newWarningCount >= 3) {
+        warningMessage = `Warning (${newWarningCount}/3): Your message contains inappropriate language. You have been timed out for 60 seconds.`;
+        timeoutUser();
+      } else {
+        warningMessage = `Warning (${newWarningCount}/3): Your message contains inappropriate language and was not sent.`;
+      }
+      
+      setError(warningMessage);
+      
+      // Clear error after 5 seconds
+      setTimeout(() => setError(''), 5000);
+      return;
+    }
     
     // Send message to server
     socket.emit('send-chat-message', {
@@ -272,6 +385,18 @@ const Chat = ({ username, streamId, socket }: ChatProps) => {
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-3 py-2 m-2 rounded">
           {error}
+        </div>
+      )}
+      
+      {isTimedOut && (
+        <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-3 py-2 m-2 rounded">
+          You are timed out. You can send messages again in {timeoutRemaining} seconds.
+        </div>
+      )}
+      
+      {!isTimedOut && warningCount > 0 && (
+        <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-3 py-2 m-2 rounded text-sm">
+          Warning status: {warningCount}/3
         </div>
       )}
       
@@ -326,6 +451,7 @@ const Chat = ({ username, streamId, socket }: ChatProps) => {
             ref={citationButtonRef}
             onClick={toggleCitationSearch}
             className="bg-gray-100 hover:bg-gray-200 text-gray-700 py-1 px-3 rounded-lg text-sm flex items-center mr-2"
+            disabled={isTimedOut}
           >
             <span className="mr-1">📚</span> Religious Citation
           </button>
@@ -347,14 +473,16 @@ const Chat = ({ username, streamId, socket }: ChatProps) => {
                 type="text"
                 value={messageInput}
                 onChange={(e) => setMessageInput(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                placeholder="Type a message..."
+                className={`w-full rounded-lg border ${isTimedOut ? 'bg-gray-100 border-gray-300' : 'border-gray-300'} px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400`}
+                placeholder={isTimedOut ? "You are timed out..." : "Type a message..."}
                 maxLength={500}
+                disabled={isTimedOut}
               />
             </div>
             <button
               type="submit"
-              className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className={`${isTimedOut ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600'} text-white px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400`}
+              disabled={isTimedOut}
             >
               Send
             </button>
