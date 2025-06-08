@@ -194,8 +194,18 @@ function App() {
           {isTranscriptionActive && <Transcription isActive={isTranscriptionActive} />}
 
           <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
+            <Route 
+              path="/login" 
+              element={
+                isLoggedIn ? <Navigate to="/" replace /> : <Login />
+              } 
+            />
+            <Route 
+              path="/register" 
+              element={
+                isLoggedIn ? <Navigate to="/" replace /> : <Register />
+              } 
+            />
             <Route
               path="/"
               element={
