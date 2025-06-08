@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Socket } from 'socket.io-client'
 import { v4 as uuidv4 } from 'uuid'
 import Chat from './Chat'
+import CitationBox from './CitationBox'
 
 interface CreateStreamProps {
   username: string
@@ -664,13 +665,18 @@ const CreateStream = ({ username, socket }: CreateStreamProps) => {
             </div>
           </div>
           
-          {/* Chat component for the streamer */}
-          <div className="w-full lg:w-96 h-[500px]">
-            <Chat 
-              username={username}
-              streamId={streamId}
-              socket={socket}
-            />
+          {/* Chat and Citation components for the streamer */}
+          <div className="w-full lg:w-96 space-y-4">
+            <div className="h-[500px]">
+              <Chat 
+                username={username}
+                streamId={streamId}
+                socket={socket}
+              />
+            </div>
+            <div className="h-[400px]">
+              <CitationBox />
+            </div>
           </div>
         </div>
       )}
