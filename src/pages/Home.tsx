@@ -41,7 +41,6 @@ const Home = ({ username, isLoggedIn, onLogin, activeStreams }: HomeProps) => {
         {/* Active Streams Section */}
         <div>
           <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold">Active Streams</h1>
             <Link
               to="/create"
               className="bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 transition"
@@ -83,7 +82,7 @@ const Home = ({ username, isLoggedIn, onLogin, activeStreams }: HomeProps) => {
 
         {/* YouTube Videos Section */}
         <div>
-          <YouTubeVideos />
+          <YouTubeVideos activeStreams={activeStreams} />
         </div>
       </div>
     </div>
