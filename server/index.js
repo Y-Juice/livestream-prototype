@@ -10,6 +10,7 @@ import jwt from 'jsonwebtoken';
 import User from './models/User.js';
 import auth from './middleware/auth.js';
 import fetch from 'node-fetch';
+import Video from './models/Video.js';
 
 dotenv.config();
 
@@ -240,6 +241,75 @@ app.get('/api/search/bible', async (req, res) => {
   } catch (error) {
     console.error('Error searching Bible:', error);
     res.status(500).json({ error: 'Failed to search Bible' });
+  }
+});
+
+// Video routes
+app.get('/api/videos', async (req, res) => {
+  try {
+    const { category } = req.query;
+    
+    // Build query
+    const query = {};
+    if (category) {
+      query.category = category;
+    }
+    
+    const videos = await Video.find(query)
+      .sort({ _id: -1 }) // Sort by newest first (using _id since it contains timestamp)
+      .limit(50); // Limit to 50 videos
+    
+    res.json(videos);
+  } catch (error) {
+    console.error('Error fetching videos:', error);
+    res.status(500).json({ error: 'Failed to fetch videos' });
+  }
+});
+
+app.post('/api/videos', auth, async (req, res) => {
+  try {
+    const { category, channel_name, title, url } = req.body;
+
+    // Validate required fields
+    if (!category || !channel_name || !title || !url) {
+      return res.status(400).json({ error: 'All fields are required' });
+    }
+
+    // Validate YouTube URL format
+    if (!url.includes('youtube.com/watch?v=')) {
+      return res.status(400).json({ error: 'Invalid YouTube URL format' });
+    }
+
+    // Check if video already exists
+    const existingVideo = await Video.findOne({ url });
+    if (existingVideo) {
+      return res.status(400).json({ error: 'Video already exists' });
+    }
+
+    // Create new video
+    const video = new Video({
+      category,
+      channel_name,
+      title,
+      url
+    });
+
+    await video.save();
+    res.status(201).json(video);
+  } catch (error) {
+    console.error('Error adding video:', error);
+    res.status(500).json({ error: 'Failed to add video' });
+  }
+});
+
+// Get unique categories
+app.get('/api/videos/categories', async (req, res) => {
+  try {
+    const categories = await Video.distinct('category');
+    res.json(categories);
+  } catch (error) {
+    console.error('Error fetching categories:', error);
+    res.status(500).json({ error: 'Failed to fetch categories' });
   }
 });
 
