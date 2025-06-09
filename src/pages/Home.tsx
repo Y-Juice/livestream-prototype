@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Link, Navigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import YouTubeVideos from '../pages/YouTubeVideos'
+import '../css/Home.css'
 
 interface Stream {
   streamId: string
@@ -9,81 +10,103 @@ interface Stream {
 }
 
 interface HomeProps {
-  username: string
   isLoggedIn: boolean
-  onLogin: (username: string) => void
+  onLogout: () => void
   activeStreams: Stream[]
 }
 
-const Home = ({ username, isLoggedIn, onLogin, activeStreams }: HomeProps) => {
-  const [inputUsername, setInputUsername] = useState('')
+const Home = ({ isLoggedIn, onLogout, activeStreams }: HomeProps) => {
+  const [categories, setCategories] = useState<string[]>([]);
   
   // Log when active streams change
   useEffect(() => {
     console.log('Home component received activeStreams:', activeStreams)
   }, [activeStreams])
-  
-  // If not logged in, redirect to login
-  if (!isLoggedIn) {
-    return <Navigate to="/login" replace />
-  }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (inputUsername.trim()) {
-      onLogin(inputUsername.trim())
-    }
-  }
+  // Fetch categories for the category section
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch('/api/videos/categories');
+        if (response.ok) {
+          const data = await response.json();
+          setCategories(data);
+        }
+      } catch (err) {
+        console.error('Error fetching categories:', err);
+      }
+    };
+    fetchCategories();
+  }, []);
+
+  const getCategoryIcon = (category: string) => {
+    const icons: { [key: string]: string } = {
+      'Education': '📚',
+      'Islamic Studies': '🕌',
+      'Science': '🔬',
+      'History': '📜',
+      'Philosophy': '🤔',
+      'Religion': '☪️',
+      'Technology': '💻',
+      'Health': '🏥',
+      'Art': '🎨',
+      'Music': '🎵'
+    };
+    return icons[category] || '📺';
+  };
 
   return (
-    <div className="max-w-7xl mx-auto px-4">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Active Streams Section */}
-        <div>
-          <div className="flex justify-between items-center mb-6">
-            <Link
-              to="/create"
-              className="bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 transition"
-            >
-              Start Streaming
+    <div className="home-container">
+      {/* Fixed Header with Action Buttons */}
+      <div className="fixed-header">
+        {isLoggedIn ? (
+          <div className="logged-in-actions">
+            <button onClick={onLogout} className="logout-btn">
+              Logout
+            </button>
+            <Link to="/create" className="go-live-btn">
+              🔴 Go Live
             </Link>
           </div>
+        ) : (
+          <div className="logged-out-actions">
+            <Link to="/login" className="login-btn">
+              Login
+            </Link>
+          </div>
+        )}
+      </div>
 
-          {activeStreams.length === 0 ? (
-            <div className="bg-white p-8 rounded-lg shadow-md text-center">
-              <p className="text-gray-600 mb-4">No active streams at the moment.</p>
-              <p className="text-gray-600">
-                Be the first to{' '}
-                <Link to="/create" className="text-indigo-600 hover:underline">
-                  start streaming
-                </Link>
-                !
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {activeStreams.map((stream) => (
-                <div key={stream.streamId} className="bg-white p-6 rounded-lg shadow-md">
-                  <h2 className="text-xl font-semibold mb-2">{stream.broadcaster}'s Stream</h2>
-                  <p className="text-gray-600 mb-4">
-                    {stream.viewerCount} {stream.viewerCount === 1 ? 'viewer' : 'viewers'}
-                  </p>
-                  <Link
-                    to={`/view/${stream.streamId}`}
-                    className="block text-center bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 transition"
-                  >
-                    Watch Stream
-                  </Link>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* YouTube Videos Section */}
-        <div>
+      {/* Content with top margin to account for fixed header */}
+      <div className="main-content">
+        {/* Featured Streams */}
+        <div className="featured-section">
           <YouTubeVideos activeStreams={activeStreams} />
         </div>
+
+        {/* Popular Categories */}
+        {categories.length > 0 && (
+          <div className="categories-section">
+            <h2 className="section-title">Popular Categories</h2>
+            <div className="categories-grid">
+              {categories.map((category) => (
+                <Link
+                  key={category}
+                  to={`/category/${encodeURIComponent(category)}`}
+                  className="category-card"
+                >
+                  <div className="category-icon">
+                    {getCategoryIcon(category)}
+                  </div>
+                  <div className="category-info">
+                    <h3 className="category-name">{category}</h3>
+                    <p className="category-subtitle">Browse content</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
