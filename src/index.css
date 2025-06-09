@@ -30,6 +30,7 @@ body {
   min-height: 100vh;
   background-color: #1a1a1a;
   color: #fff;
+  overflow-x: hidden;
 }
 
 #root {
@@ -70,6 +71,9 @@ input, select, textarea {
   background-color: #2d2d2d;
   color: #fff;
   border: 1px solid #404040;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 input::placeholder {
@@ -91,4 +95,141 @@ input::placeholder {
 
 .shadow-md {
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Global responsive styles */
+html {
+  font-size: 16px;
+}
+
+@media (max-width: 1024px) {
+  html {
+    font-size: 15px;
+  }
+}
+
+@media (max-width: 768px) {
+  html {
+    font-size: 14px;
+  }
+  
+  /* Ensure touch targets are properly sized */
+  button, .btn, a {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+@media (max-width: 480px) {
+  html {
+    font-size: 13px;
+  }
+}
+
+/* Responsive images and media */
+img, video {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Responsive containers */
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 0 0.5rem;
+  }
+}
+
+/* Responsive text sizing */
+@media (max-width: 768px) {
+  h1 { font-size: 1.75rem; }
+  h2 { font-size: 1.5rem; }
+  h3 { font-size: 1.25rem; }
+  h4 { font-size: 1.1rem; }
+  h5 { font-size: 1rem; }
+  h6 { font-size: 0.9rem; }
+}
+
+@media (max-width: 480px) {
+  h1 { font-size: 1.5rem; }
+  h2 { font-size: 1.3rem; }
+  h3 { font-size: 1.1rem; }
+  h4 { font-size: 1rem; }
+  h5 { font-size: 0.9rem; }
+  h6 { font-size: 0.8rem; }
+}
+
+/* Responsive spacing utilities */
+@media (max-width: 768px) {
+  .space-y-4 > * + * { margin-top: 0.75rem; }
+  .space-y-6 > * + * { margin-top: 1rem; }
+  .space-y-8 > * + * { margin-top: 1.25rem; }
+  
+  .p-4 { padding: 0.75rem; }
+  .p-6 { padding: 1rem; }
+  .p-8 { padding: 1.25rem; }
+  
+  .m-4 { margin: 0.75rem; }
+  .m-6 { margin: 1rem; }
+  .m-8 { margin: 1.25rem; }
+}
+
+/* App layout responsive adjustments */
+@media (max-width: 768px) {
+  .App {
+    flex-direction: column;
+  }
+  
+  /* Hide sidebar on mobile, show hamburger menu instead */
+  .sidebar-toggle {
+    display: block;
+    position: fixed;
+    top: 15px;
+    left: 15px;
+    z-index: 1001;
+    background: #2d2d2d;
+    color: white;
+    border: none;
+    padding: 10px;
+    border-radius: 5px;
+    font-size: 18px;
+    cursor: pointer;
+  }
+}
+
+@media (min-width: 769px) {
+  .sidebar-toggle {
+    display: none;
+  }
+}
+
+/* Prevent horizontal scroll */
+body {
+  overflow-x: hidden;
+}
+
+/* Responsive viewport handling */
+@viewport {
+  width: device-width;
+  zoom: 1.0;
+}
+
+/* Better responsive images */
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Responsive forms */
+@media (max-width: 768px) {
+  input, textarea, select {
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
 }

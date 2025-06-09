@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect } from 'react'
 import YouTubeVideos from '../pages/YouTubeVideos'
+import CategoriesCarousel from '../components/CategoriesCarousel'
+import WelcomeSection from '../components/WelcomeSection'
 import '../css/Home.css'
 
 interface Stream {
@@ -10,103 +11,31 @@ interface Stream {
 }
 
 interface HomeProps {
-  isLoggedIn: boolean
-  onLogout: () => void
   activeStreams: Stream[]
 }
 
-const Home = ({ isLoggedIn, onLogout, activeStreams }: HomeProps) => {
-  const [categories, setCategories] = useState<string[]>([]);
-  
+const Home = ({ activeStreams }: HomeProps) => {
   // Log when active streams change
   useEffect(() => {
     console.log('Home component received activeStreams:', activeStreams)
   }, [activeStreams])
 
-  // Fetch categories for the category section
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const response = await fetch('/api/videos/categories');
-        if (response.ok) {
-          const data = await response.json();
-          setCategories(data);
-        }
-      } catch (err) {
-        console.error('Error fetching categories:', err);
-      }
-    };
-    fetchCategories();
-  }, []);
-
-  const getCategoryIcon = (category: string) => {
-    const icons: { [key: string]: string } = {
-      'Education': '📚',
-      'Islamic Studies': '🕌',
-      'Science': '🔬',
-      'History': '📜',
-      'Philosophy': '🤔',
-      'Religion': '☪️',
-      'Technology': '💻',
-      'Health': '🏥',
-      'Art': '🎨',
-      'Music': '🎵'
-    };
-    return icons[category] || '📺';
-  };
-
   return (
     <div className="home-container">
-      {/* Fixed Header with Action Buttons */}
-      <div className="fixed-header">
-        {isLoggedIn ? (
-          <div className="logged-in-actions">
-            <button onClick={onLogout} className="logout-btn">
-              Logout
-            </button>
-            <Link to="/create" className="go-live-btn">
-              🔴 Go Live
-            </Link>
-          </div>
-        ) : (
-          <div className="logged-out-actions">
-            <Link to="/login" className="login-btn">
-              Login
-            </Link>
-          </div>
-        )}
-      </div>
-
       {/* Content with top margin to account for fixed header */}
       <div className="main-content">
-        {/* Featured Streams */}
+        {/* Welcome Section */}
+        <WelcomeSection />
+
+        {/* Featured Streams - Only Newest Content */}
         <div className="featured-section">
-          <YouTubeVideos activeStreams={activeStreams} />
+          <YouTubeVideos activeStreams={activeStreams} showOnlyNewest={true} />
         </div>
 
-        {/* Popular Categories */}
-        {categories.length > 0 && (
-          <div className="categories-section">
-            <h2 className="section-title">Popular Categories</h2>
-            <div className="categories-grid">
-              {categories.map((category) => (
-                <Link
-                  key={category}
-                  to={`/category/${encodeURIComponent(category)}`}
-                  className="category-card"
-                >
-                  <div className="category-icon">
-                    {getCategoryIcon(category)}
-                  </div>
-                  <div className="category-info">
-                    <h3 className="category-name">{category}</h3>
-                    <p className="category-subtitle">Browse content</p>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* Categories Carousel */}
+        <div className="categories-section">
+          <CategoriesCarousel />
+        </div>
       </div>
     </div>
   )

@@ -20,6 +20,7 @@ import ViewStream from './components/ViewStream'
 import WatchVideo from './pages/WatchVideo'
 import CategoryPage from './pages/CategoryPage'
 import Sidebar from './components/Sidebar'
+import Header from './components/Header'
 import Browse from './pages/Browse'
 import Following from './pages/Following'
 import Library from './pages/Library'
@@ -205,6 +206,11 @@ const AppContent = ({ username, isLoggedIn, handleLogout, activeStreams, socketR
         <Sidebar username={username} />
       )}
       
+      {/* Header - only show when not on login/register */}
+      {!['/login', '/register'].includes(location.pathname) && (
+        <Header isLoggedIn={isLoggedIn} onLogout={handleLogout} />
+      )}
+      
       <div style={{ flex: 1 }}>
 
         
@@ -225,13 +231,9 @@ const AppContent = ({ username, isLoggedIn, handleLogout, activeStreams, socketR
             <Route
               path="/"
               element={
-                <ProtectedRoute>
-                  <Home 
-                    isLoggedIn={isLoggedIn}
-                    onLogout={handleLogout}
-                    activeStreams={activeStreams}
-                  />
-                </ProtectedRoute>
+                <Home 
+                  activeStreams={activeStreams}
+                />
               }
             />
             <Route 

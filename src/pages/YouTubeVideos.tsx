@@ -18,9 +18,11 @@ interface Stream {
 
 interface YouTubeVideosProps {
   activeStreams: Stream[];
+  showOnlyNewest?: boolean;
+  showNewestContent?: boolean;
 }
 
-const YouTubeVideos = ({ activeStreams }: YouTubeVideosProps) => {
+const YouTubeVideos = ({ activeStreams, showOnlyNewest = false, showNewestContent = true }: YouTubeVideosProps) => {
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -262,11 +264,11 @@ const YouTubeVideos = ({ activeStreams }: YouTubeVideosProps) => {
   return (
     <div className="ytv-container">
       
-      {/* Main carousel with all videos + streams */}
-      {renderCarousel('Newest Content', videos, true)}
+      {/* Main carousel with all videos + streams - only show if enabled */}
+      {showNewestContent && renderCarousel('Newest Content', videos, true)}
       
-      {/* Category carousels */}
-      {Object.entries(videosByCategory).map(([category, categoryVideos]) =>
+      {/* Category carousels - only show if not in "newest only" mode */}
+      {!showOnlyNewest && Object.entries(videosByCategory).map(([category, categoryVideos]) =>
         renderCarousel(category, categoryVideos)
       )}
     </div>
