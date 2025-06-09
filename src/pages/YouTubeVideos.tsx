@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import './YouTubeVideos.css';
+import '../css/YouTubeVideos.css';
+import { useNavigate } from 'react-router-dom';
 
 interface Video {
   _id: string;
@@ -15,25 +16,23 @@ const YouTubeVideos = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchCategories = async () => {
       try {
         const response = await fetch('/api/videos/categories', {
-          credentials: 'include'
+          credentials: 'include',
         });
-        
         if (!response.ok) {
           throw new Error('Failed to fetch categories');
         }
-
         const data = await response.json();
         setCategories(data);
       } catch (err) {
         console.error('Error fetching categories:', err);
       }
     };
-
     fetchCategories();
   }, []);
 
@@ -41,18 +40,15 @@ const YouTubeVideos = () => {
     const fetchVideos = async () => {
       try {
         setLoading(true);
-        const url = selectedCategory 
+        const url = selectedCategory
           ? `/api/videos?category=${encodeURIComponent(selectedCategory)}`
           : '/api/videos';
-          
         const response = await fetch(url, {
-          credentials: 'include'
+          credentials: 'include',
         });
-        
         if (!response.ok) {
           throw new Error('Failed to fetch videos');
         }
-
         const data = await response.json();
         setVideos(data);
       } catch (err) {
@@ -62,7 +58,6 @@ const YouTubeVideos = () => {
         setLoading(false);
       }
     };
-
     fetchVideos();
   }, [selectedCategory]);
 
@@ -73,16 +68,16 @@ const YouTubeVideos = () => {
 
   if (loading) {
     return (
-      <div className="bg-white p-4 rounded-lg shadow-md">
-        <p className="text-gray-600">Loading videos...</p>
+      <div className="ytv-container">
+        <p>Loading videos...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-white p-4 rounded-lg shadow-md">
-        <p className="text-red-600">{error}</p>
+      <div className="ytv-container">
+        <p>{error}</p>
       </div>
     );
   }
@@ -118,6 +113,8 @@ const YouTubeVideos = () => {
               <div
                 key={video._id}
                 className="ytv-card"
+                onClick={() => navigate(`/video/${video._id}`)}
+                style={{ cursor: 'pointer' }}
               >
                 <img
                   src={thumbnailUrl}
@@ -133,13 +130,6 @@ const YouTubeVideos = () => {
                   <div className="ytv-category-row">
                     <span>{video.category}</span>
                   </div>
-                  <a
-                    href={video.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="ytv-link"
-                    aria-label="Watch on YouTube"
-                  />
                 </div>
               </div>
             );

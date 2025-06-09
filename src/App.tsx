@@ -7,11 +7,12 @@ import Register from './components/auth/Register'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 
 // Components
-import Home from './components/Home'
+import Home from './pages/Home'
 import CreateStream from './components/CreateStream'
 import ViewStream from './components/ViewStream'
 import Navbar from './components/Navbar'
 import Transcription from './components/Transcription'
+import WatchVideo from './pages/WatchVideo'
 
 // Create socket connection
 const createSocket = (): Socket => {
@@ -235,6 +236,7 @@ function App() {
                   : <Navigate to="/" />
               } 
             />
+            <Route path="/video/:id" element={<WatchVideo />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>

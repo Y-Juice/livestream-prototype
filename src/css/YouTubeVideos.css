@@ -4,7 +4,6 @@
   border-radius: 1rem;
   box-shadow: 0 2px 8px rgba(0,0,0,0.08);
   margin-bottom: 2rem;
-  
 }
 
 .ytv-title {
@@ -36,6 +35,8 @@
   overflow-x: auto;
   gap: 1rem;
   padding-bottom: 0.5rem;
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db #f3f4f6;
 }
 .ytv-carousel::-webkit-scrollbar {
   height: 8px;
@@ -108,13 +109,3 @@
   color: #d1fae5;
   font-size: 0.8rem;
 }
-
-.ytv-link {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  text-indent: -9999px;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-} 

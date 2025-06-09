@@ -266,6 +266,20 @@ app.get('/api/videos', async (req, res) => {
   }
 });
 
+// Get single video by ID
+app.get('/api/videos/:id', async (req, res) => {
+  try {
+    const video = await Video.findById(req.params.id);
+    if (!video) {
+      return res.status(404).json({ error: 'Video not found' });
+    }
+    res.json(video);
+  } catch (error) {
+    console.error('Error fetching video by ID:', error);
+    res.status(500).json({ error: 'Failed to fetch video' });
+  }
+});
+
 app.post('/api/videos', auth, async (req, res) => {
   try {
     const { category, channel_name, title, url } = req.body;

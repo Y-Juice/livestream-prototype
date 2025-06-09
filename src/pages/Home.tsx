@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, Navigate } from 'react-router-dom'
-import YouTubeVideos from './YouTubeVideos'
+import YouTubeVideos from '../pages/YouTubeVideos'
 
 interface Stream {
   streamId: string
