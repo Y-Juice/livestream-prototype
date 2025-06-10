@@ -10,6 +10,17 @@ interface CreateStreamProps {
   socket: Socket
 }
 
+interface JoinRequest {
+  username: string
+  timestamp: number
+}
+
+interface CoStreamer {
+  username: string
+  socketId: string
+  stream?: MediaStream
+}
+
 const CreateStream = ({ username, socket }: CreateStreamProps) => {
   const [streamId, setStreamId] = useState<string>('')
   const [isStreaming, setIsStreaming] = useState<boolean>(false)
@@ -21,13 +32,46 @@ const CreateStream = ({ username, socket }: CreateStreamProps) => {
     resolution: string
     frameRate: number
   }>({ resolution: 'N/A', frameRate: 0 })
+  const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([])
+  const [coStreamers, setCoStreamers] = useState<CoStreamer[]>([])
   
   const localVideoRef = useRef<HTMLVideoElement>(null)
   const localStreamRef = useRef<MediaStream | null>(null)
   const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map())
+  const coStreamerPeerConnections = useRef<Map<string, RTCPeerConnection>>(new Map())
   const statsIntervalRef = useRef<NodeJS.Timeout | null>(null)
   
   const navigate = useNavigate()
+
+  // Handle join request response
+  const handleJoinRequestResponse = (requestUsername: string, accept: boolean) => {
+    if (socket && streamId) {
+      socket.emit('respond-join-request', { 
+        streamId, 
+        requestUsername, 
+        accept 
+      })
+      
+      setJoinRequests(prev => 
+        prev.filter(req => req.username !== requestUsername)
+      )
+    }
+  }
+
+  // Handle kicking a co-streamer
+  const handleKickCoStreamer = (coStreamerUsername: string) => {
+    if (socket && streamId) {
+      socket.emit('kick-co-streamer', { 
+        streamId, 
+        coStreamerUsername 
+      })
+      
+      // Remove from local state
+      setCoStreamers(prev => 
+        prev.filter(cs => cs.username !== coStreamerUsername)
+      )
+    }
+  }
 
   // Initialize stream
   const initializeStream = async () => {
@@ -55,25 +99,32 @@ const CreateStream = ({ username, socket }: CreateStreamProps) => {
       
       // Set the stream as the video source
       if (localVideoRef.current) {
+        console.log('Setting up local video element')
+        
+        // Ensure video element is ready
+        const videoElement = localVideoRef.current
+        
         // First clear the video source to ensure refresh
-        localVideoRef.current.srcObject = null
+        videoElement.srcObject = null
         
-        // Short delay to ensure DOM updates
-        await new Promise(resolve => setTimeout(resolve, 100))
+        // Wait for the video element to be ready
+        await new Promise(resolve => setTimeout(resolve, 200))
         
-        // Set the stream and play
-        localVideoRef.current.srcObject = stream
+        // Set the stream
+        videoElement.srcObject = stream
+        videoElement.muted = true  // Ensure muted for autoplay
         
-        // Ensure video is playing with multiple attempts
-        const attemptPlay = async (retries = 3) => {
+        // Force video to load and play
+        const attemptPlay = async (retries = 5) => {
           try {
-            await localVideoRef.current?.play()
+            await videoElement.load() // Force reload
+            await videoElement.play()
             console.log('Local video playing successfully')
           } catch (err) {
             console.error('Error playing local video:', err)
             if (retries > 0) {
               console.log(`Retrying playback, ${retries} attempts left`)
-              setTimeout(() => attemptPlay(retries - 1), 500)
+              setTimeout(() => attemptPlay(retries - 1), 800)
             }
           }
         }
@@ -478,6 +529,75 @@ const CreateStream = ({ username, socket }: CreateStreamProps) => {
     const handleError = ({ message }: { message: string }) => {
       setError(message)
     }
+
+    // Handle join requests from viewers
+    const handleJoinRequest = (request: JoinRequest) => {
+      console.log('Received join request from:', request.username)
+      setJoinRequests(prev => [...prev, request])
+    }
+
+    // Handle co-streamer joined
+    const handleCoStreamerJoined = ({ username: coStreamerName, socketId }: { username: string, socketId: string }) => {
+      console.log(`Co-streamer joined: ${coStreamerName}`)
+      setCoStreamers(prev => [
+        ...prev.filter(cs => cs.username !== coStreamerName),
+        { username: coStreamerName, socketId }
+      ])
+    }
+
+    // Handle co-streamer offer
+    const handleCoStreamerOffer = async ({ from, offer }: { from: string, offer: RTCSessionDescriptionInit }) => {
+      console.log(`Received co-streamer offer from: ${from}`)
+      
+      // Create peer connection for co-streamer
+      const pc = new RTCPeerConnection({
+        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+      })
+      
+      coStreamerPeerConnections.current.set(from, pc)
+      
+      pc.ontrack = (event) => {
+        console.log('Received co-streamer track:', event.track.kind)
+        const stream = event.streams[0]
+        
+        // Update co-streamer with stream
+        setCoStreamers(prev => 
+          prev.map(cs => 
+            cs.socketId === from 
+              ? { ...cs, stream }
+              : cs
+          )
+        )
+      }
+      
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          socket.emit('co-streamer-ice-candidate', {
+            target: from,
+            candidate: event.candidate
+          })
+        }
+      }
+      
+      await pc.setRemoteDescription(offer)
+      const answer = await pc.createAnswer()
+      await pc.setLocalDescription(answer)
+      
+      socket.emit('co-streamer-answer', {
+        target: from,
+        answer
+      })
+    }
+
+    // Handle co-streamer ice candidate
+    const handleCoStreamerIceCandidate = ({ from, candidate }: { from: string, candidate: RTCIceCandidateInit }) => {
+      const pc = coStreamerPeerConnections.current.get(from)
+      if (pc) {
+        pc.addIceCandidate(new RTCIceCandidate(candidate))
+      }
+    }
+
+
     
     // Register event listeners
     socket.on('viewer-joined', handleViewerJoined)
@@ -485,6 +605,10 @@ const CreateStream = ({ username, socket }: CreateStreamProps) => {
     socket.on('request-offer', handleRequestOffer)
     socket.on('answer', handleAnswer)
     socket.on('ice-candidate', handleIceCandidate)
+    socket.on('join-request', handleJoinRequest)
+    socket.on('co-streamer-joined', handleCoStreamerJoined)
+    socket.on('co-streamer-offer', handleCoStreamerOffer)
+    socket.on('co-streamer-ice-candidate', handleCoStreamerIceCandidate)
     socket.on('error', handleError)
     
     // Cleanup on unmount
@@ -494,7 +618,15 @@ const CreateStream = ({ username, socket }: CreateStreamProps) => {
       socket.off('request-offer', handleRequestOffer)
       socket.off('answer', handleAnswer)
       socket.off('ice-candidate', handleIceCandidate)
+      socket.off('join-request', handleJoinRequest)
+      socket.off('co-streamer-joined', handleCoStreamerJoined)
+      socket.off('co-streamer-offer', handleCoStreamerOffer)
+      socket.off('co-streamer-ice-candidate', handleCoStreamerIceCandidate)
       socket.off('error', handleError)
+      
+      // Clean up co-streamer peer connections
+      coStreamerPeerConnections.current.forEach(pc => pc.close())
+      coStreamerPeerConnections.current.clear()
       
       // Stop streaming if active
       if (isStreaming) {
@@ -577,24 +709,59 @@ const CreateStream = ({ username, socket }: CreateStreamProps) => {
         <div className="cs-new-layout">
           {/* Stream Video - Full Width */}
           <div className="cs-video-container">
-            <div className="cs-video-wrapper">
-              <video
-                ref={localVideoRef}
-                autoPlay
-                playsInline
-                muted
-                className="cs-local-video"
-              />
-              
-              {!videoEnabled && (
-                <div className="cs-video-disabled-overlay">
-                  <div>
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                    <p>Video is disabled</p>
+            <div className={`video-layout ${coStreamers.length > 0 ? 'split-screen' : 'single-screen'}`}>
+              {/* Main broadcaster video */}
+              <div className="main-video">
+                <video
+                  ref={localVideoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="cs-local-video"
+                />
+                
+                {!videoEnabled && (
+                  <div className="cs-video-disabled-overlay">
+                    <div>
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                      <p>Video is disabled</p>
+                    </div>
                   </div>
+                )}
+              </div>
+
+              {/* Co-streamer videos */}
+              {coStreamers.length > 0 && (
+                <div className="co-streamer-section">
+                  {coStreamers.map((coStreamer) => (
+                    <div key={coStreamer.socketId} className="co-streamer-video-container">
+                      <video
+                        className="co-streamer-video"
+                        autoPlay
+                        playsInline
+                        ref={(el) => {
+                          if (el && coStreamer.stream) {
+                            el.srcObject = coStreamer.stream
+                          }
+                        }}
+                      />
+                      <div className="video-label">
+                        {coStreamer.username}
+                      </div>
+                      <div className="video-controls">
+                        <button 
+                          className="control-btn kick-btn"
+                          onClick={() => handleKickCoStreamer(coStreamer.username)}
+                          title={`Kick ${coStreamer.username}`}
+                        >
+                          🚫
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
@@ -704,6 +871,30 @@ const CreateStream = ({ username, socket }: CreateStreamProps) => {
           </div>
         </div>
       )}
+
+      {/* Join Request Popups for Streamer */}
+      {isStreaming && joinRequests.map((request) => (
+        <div key={request.username} className="cs-join-request-popup">
+          <div className="cs-popup-content">
+            <h4>Join Request</h4>
+            <p><strong>{request.username}</strong> wants to join your stream</p>
+            <div className="cs-popup-actions">
+              <button 
+                className="cs-accept-btn"
+                onClick={() => handleJoinRequestResponse(request.username, true)}
+              >
+                Accept
+              </button>
+              <button 
+                className="cs-reject-btn"
+                onClick={() => handleJoinRequestResponse(request.username, false)}
+              >
+                Reject
+              </button>
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   )
 }

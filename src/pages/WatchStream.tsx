@@ -67,11 +67,25 @@ const WatchStream = ({ username, socket }: WatchStreamProps) => {
         setHasRequestedJoin(false);
       });
 
+      socket.on('kicked-from-co-streaming', () => {
+        setHasJoined(false);
+        setHasRequestedJoin(false);
+        // Show notification that user was kicked
+        alert('You have been removed from co-streaming by the broadcaster.');
+      });
+
+      socket.on('co-streamer-left', ({ username: leftUsername }) => {
+        console.log(`Co-streamer ${leftUsername} left`);
+        // This will be handled by ViewStream component
+      });
+
       return () => {
         socket.off('streamer-status');
         socket.off('join-request');
         socket.off('join-accepted');
         socket.off('join-rejected');
+        socket.off('kicked-from-co-streaming');
+        socket.off('co-streamer-left');
       };
     }
   }, [socket, streamId, username]);
@@ -136,6 +150,14 @@ const WatchStream = ({ username, socket }: WatchStreamProps) => {
   const toggleMic = () => {
     setMicEnabled(!micEnabled);
     // TODO: Implement actual mic toggle via WebRTC
+  };
+
+  const handleLeaveCoStreaming = () => {
+    if (socket && streamId) {
+      socket.emit('leave-co-streaming', { streamId });
+      setHasJoined(false);
+      setHasRequestedJoin(false);
+    }
   };
 
   return (
@@ -214,6 +236,7 @@ const WatchStream = ({ username, socket }: WatchStreamProps) => {
               micEnabled={micEnabled}
               onCameraToggle={toggleCamera}
               onMicToggle={toggleMic}
+              onLeaveCoStreaming={handleLeaveCoStreaming}
             />
           </div>
         </div>

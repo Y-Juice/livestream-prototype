@@ -509,6 +509,7 @@ const ViewStream = ({ username, socket, hasJoined, cameraEnabled, micEnabled, on
                 autoPlay
                 playsInline
                 onClick={handleVideoClick}
+                style={{ minHeight: '200px', background: '#000' }}
               />              
               {!isConnected && !error && (
                 <div className="absolute inset-0 flex items-center justify-center">

@@ -27,6 +27,7 @@ interface ChatProps {
   micEnabled?: boolean
   onCameraToggle?: () => void
   onMicToggle?: () => void
+  onLeaveCoStreaming?: () => void
 }
 
 // Common offensive words to filter
@@ -35,7 +36,7 @@ const PROFANITY_LIST = [
   'dick', 'piss', 'nigger', 'nigga', 'retard', 'faggot', 'fag', 'whore'
 ];
 
-const Chat = ({ username, streamId, socket, hasJoined, hasRequestedJoin, onRequestJoin, onCiteSources, cameraEnabled, micEnabled, onCameraToggle, onMicToggle }: ChatProps) => {
+const Chat = ({ username, streamId, socket, hasJoined, hasRequestedJoin, onRequestJoin, onCiteSources, cameraEnabled, micEnabled, onCameraToggle, onMicToggle, onLeaveCoStreaming }: ChatProps) => {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [messageInput, setMessageInput] = useState('')
   const [error, setError] = useState<string>('')
@@ -473,26 +474,34 @@ const Chat = ({ username, streamId, socket, hasJoined, hasRequestedJoin, onReque
 
         {/* User controls when joined */}
         {hasJoined && (
-          <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+              <button 
+                className={`py-2 px-4 rounded-lg font-medium transition ${
+                  cameraEnabled 
+                    ? 'bg-green-500 hover:bg-green-600 text-white' 
+                    : 'bg-red-500 hover:bg-red-600 text-white'
+                }`}
+                onClick={onCameraToggle}
+              >
+                {cameraEnabled ? '📹 Camera On' : '📹 Camera Off'}
+              </button>
+              <button 
+                className={`py-2 px-4 rounded-lg font-medium transition ${
+                  micEnabled 
+                    ? 'bg-green-500 hover:bg-green-600 text-white' 
+                    : 'bg-red-500 hover:bg-red-600 text-white'
+                }`}
+                onClick={onMicToggle}
+              >
+                {micEnabled ? '🎤 Mic On' : '🔇 Mic Off'}
+              </button>
+            </div>
             <button 
-              className={`py-2 px-4 rounded-lg font-medium transition ${
-                cameraEnabled 
-                  ? 'bg-green-500 hover:bg-green-600 text-white' 
-                  : 'bg-red-500 hover:bg-red-600 text-white'
-              }`}
-              onClick={onCameraToggle}
+              className="w-full bg-orange-500 hover:bg-orange-600 text-white py-2 px-4 rounded-lg font-medium transition"
+              onClick={onLeaveCoStreaming}
             >
-              {cameraEnabled ? '📹 Camera On' : '📹 Camera Off'}
-            </button>
-            <button 
-              className={`py-2 px-4 rounded-lg font-medium transition ${
-                micEnabled 
-                  ? 'bg-green-500 hover:bg-green-600 text-white' 
-                  : 'bg-red-500 hover:bg-red-600 text-white'
-              }`}
-              onClick={onMicToggle}
-            >
-              {micEnabled ? '🎤 Mic On' : '🔇 Mic Off'}
+              🚪 Leave Co-Streaming
             </button>
           </div>
         )}

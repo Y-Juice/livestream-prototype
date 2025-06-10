@@ -1077,6 +1077,80 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Kick co-streamer
+  socket.on('kick-co-streamer', ({ streamId, coStreamerUsername }) => {
+    const user = users.get(socket.id);
+    const stream = streams.get(streamId);
+    
+    // Only allow broadcaster to kick co-streamers
+    if (!user || !stream || stream.broadcaster !== user.username) {
+      socket.emit('error', { message: 'Not authorized to kick co-streamers' });
+      return;
+    }
+
+    // Find the co-streamer socket
+    const coStreamerSocket = Array.from(io.sockets.sockets.values())
+      .find(s => {
+        const userData = users.get(s.id);
+        return userData && userData.username === coStreamerUsername && userData.streamId === streamId;
+      });
+
+    if (coStreamerSocket) {
+      const coStreamerUser = users.get(coStreamerSocket.id);
+      if (coStreamerUser) {
+        // Remove from co-streamers
+        if (stream.coStreamers) {
+          stream.coStreamers.delete(coStreamerSocket.id);
+        }
+        
+        // Change role back to viewer
+        coStreamerUser.role = 'viewer';
+        
+        // Add back to viewers
+        stream.viewers.add(coStreamerSocket.id);
+        
+        // Notify the kicked user
+        coStreamerSocket.emit('kicked-from-co-streaming');
+        
+        // Notify all users in the stream
+        io.to(streamId).emit('co-streamer-left', { 
+          username: coStreamerUsername 
+        });
+        
+        console.log(`User ${coStreamerUsername} was kicked from co-streaming by ${user.username}`);
+      }
+    }
+  });
+
+  // Leave co-streaming
+  socket.on('leave-co-streaming', ({ streamId }) => {
+    const user = users.get(socket.id);
+    const stream = streams.get(streamId);
+    
+    if (!user || !stream || user.role !== 'co-streamer') {
+      socket.emit('error', { message: 'Not currently co-streaming' });
+      return;
+    }
+
+    // Remove from co-streamers
+    if (stream.coStreamers) {
+      stream.coStreamers.delete(socket.id);
+    }
+    
+    // Change role back to viewer
+    user.role = 'viewer';
+    
+    // Add back to viewers
+    stream.viewers.add(socket.id);
+    
+    // Notify all users in the stream
+    io.to(streamId).emit('co-streamer-left', { 
+      username: user.username 
+    });
+    
+    console.log(`User ${user.username} left co-streaming`);
+  });
+
   // Leave stream
   socket.on('leave-stream', () => {
     const user = users.get(socket.id);
