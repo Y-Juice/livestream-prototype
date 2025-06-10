@@ -150,7 +150,7 @@ const ViewStream = ({ username, socket, hasJoined, cameraEnabled, micEnabled, on
       return
     }
     
-    console.log('Handling remote stream with tracks:', 
+    console.log('*** HANDLING REMOTE STREAM ***', 'Tracks:', 
       remoteStreamRef.current.getTracks().map(t => `${t.kind}:${t.enabled ? 'enabled' : 'disabled'}`).join(', '))
     
     // Only set srcObject if it's different to avoid interrupting playback
@@ -201,7 +201,7 @@ const ViewStream = ({ username, socket, hasJoined, cameraEnabled, micEnabled, on
 
 
   useEffect(() => {
-    console.log('Initializing ViewStream component')
+    console.log('Initializing ViewStream component', { streamId, username })
     
     // Join the stream
     if (streamId) {
@@ -509,8 +509,7 @@ const ViewStream = ({ username, socket, hasJoined, cameraEnabled, micEnabled, on
                 autoPlay
                 playsInline
                 onClick={handleVideoClick}
-              />
-              
+              />              
               {!isConnected && !error && (
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="bg-black bg-opacity-70 p-4 rounded text-white">

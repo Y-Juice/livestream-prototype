@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Socket } from 'socket.io-client'
 import { v4 as uuidv4 } from 'uuid'
 import Chat from './Chat'
+import '../css/CreateStream.css'
 
 interface CreateStreamProps {
   username: string
@@ -325,19 +326,21 @@ const CreateStream = ({ username, socket }: CreateStreamProps) => {
         if (peerConnectionsRef.current.size >= MAX_PEER_CONNECTIONS) {
           console.warn(`Maximum peer connections (${MAX_PEER_CONNECTIONS}) reached. Closing oldest connection.`)
           // Get the oldest connection (first key in Map)
-          const oldestTarget = peerConnectionsRef.current.keys().next().value
-          const oldConnection = peerConnectionsRef.current.get(oldestTarget)
-          if (oldConnection) {
-            try {
-              oldConnection.close()
-            } catch (err) {
-              console.warn(`Error closing oldest peer connection:`, err)
+          const oldestTarget = peerConnectionsRef.current.keys().next().value as string | undefined
+          if (oldestTarget) {
+            const oldConnection = peerConnectionsRef.current.get(oldestTarget)
+            if (oldConnection) {
+              try {
+                oldConnection.close()
+              } catch (err) {
+                console.warn(`Error closing oldest peer connection:`, err)
+              }
+              peerConnectionsRef.current.delete(oldestTarget)
             }
-            peerConnectionsRef.current.delete(oldestTarget)
           }
         }
         
-        // Create a new RTCPeerConnection
+        // Create a new RTCPeerConnection  
         const peerConnection = new RTCPeerConnection({
           iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
@@ -353,7 +356,7 @@ const CreateStream = ({ username, socket }: CreateStreamProps) => {
           
           localStreamRef.current.getTracks().forEach(track => {
             if (localStreamRef.current) {
-              const sender = peerConnection.addTrack(track, localStreamRef.current)
+              peerConnection.addTrack(track, localStreamRef.current)
               console.log(`Added ${track.kind} track to peer connection`)
               
               // Ensure track is enabled based on current state
@@ -518,56 +521,51 @@ const CreateStream = ({ username, socket }: CreateStreamProps) => {
   }, [socket, isStreaming, streamId])
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="cs-container">
       {/* Stream form before streaming starts */}
       {!isStreaming ? (
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+        <div className="cs-setup-container">
           {/* Header */}
-          <div className="p-6 bg-gray-50 border-b">
-            <h1 className="text-2xl font-bold">Create Stream</h1>
-            <p className="text-gray-600 mt-1">
-              Start streaming to your audience
-            </p>
+          <div className="cs-setup-header">
+            <h1>Create Stream</h1>
+            <p>Start streaming to your audience</p>
           </div>
           
-          <div className="p-6">
+          <div className="cs-setup-content">
             {error && (
-              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+              <div className="cs-error">
                 {error}
               </div>
             )}
-            <div className="mb-4">
-              <label htmlFor="streamId" className="block text-gray-700 mb-2">
-                Stream ID (optional)
-              </label>
+            <div className="cs-form-group">
+              <label htmlFor="streamId">Stream ID (optional)</label>
               <input
                 type="text"
                 id="streamId"
                 value={streamId}
                 onChange={(e) => setStreamId(e.target.value)}
-                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 placeholder="Leave empty for random ID"
               />
-              <p className="text-gray-500 text-sm mt-1">
+              <p className="cs-form-help">
                 This will be used in the stream URL
               </p>
             </div>
-            <div className="flex space-x-4">
+            <div className="cs-setup-actions">
               <button
                 onClick={startStream}
-                className="bg-indigo-600 text-white py-2 px-6 rounded-lg hover:bg-indigo-700 transition"
+                className="cs-btn cs-btn-primary"
               >
                 Start Streaming
               </button>
               <button
                 onClick={() => navigate('/')}
-                className="bg-gray-200 text-gray-800 py-2 px-6 rounded-lg hover:bg-gray-300 transition"
+                className="cs-btn cs-btn-secondary"
               >
                 Cancel
               </button>
               <button
                 onClick={createTestStream}
-                className="bg-yellow-500 text-white py-2 px-6 rounded-lg hover:bg-yellow-600 transition"
+                className="cs-btn cs-btn-warning"
               >
                 Create Test Stream
               </button>
@@ -575,110 +573,134 @@ const CreateStream = ({ username, socket }: CreateStreamProps) => {
           </div>
         </div>
       ) : (
-        // Streaming interface after streaming starts
-        <div className="flex flex-col lg:flex-row gap-4">
-          <div className="lg:flex-1">
-            <div className="bg-white rounded-lg shadow-md overflow-hidden">
-              <div className="p-4 bg-gray-50 border-b">
-                <div className="flex items-center justify-between">
+        // Streaming interface after streaming starts - Match WatchStream layout
+        <div className="cs-new-layout">
+          {/* Stream Video - Full Width */}
+          <div className="cs-video-container">
+            <div className="cs-video-wrapper">
+              <video
+                ref={localVideoRef}
+                autoPlay
+                playsInline
+                muted
+                className="cs-local-video"
+              />
+              
+              {!videoEnabled && (
+                <div className="cs-video-disabled-overlay">
                   <div>
-                    <h1 className="text-xl font-bold">Live Stream</h1>
-                    <div className="flex items-center mt-1">
-                      <span className="inline-block bg-red-500 text-white text-xs px-2 py-1 rounded-full mr-2">
-                        LIVE
-                      </span>
-                      <span className="text-gray-600 text-sm">
-                        Stream ID: <span className="font-mono">{streamId}</span>
-                      </span>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                    <p>Video is disabled</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Content Row - Info and Chat Side by Side */}
+          <div className="cs-content-row">
+            {/* Main Content Area */}
+            <div className="cs-main-content">
+              {/* Stream Info and Stats */}
+              <div className="cs-info-section">
+                {/* Stream Info */}
+                <div className="cs-stream-info">
+                  <h2 className="cs-stream-title">Live Stream</h2>
+                  <div className="cs-stream-metadata">
+                    <div className="cs-live-indicator">
+                      <span className="cs-live-badge">LIVE</span>
+                    </div>
+                    <div className="cs-viewers">
+                      👥 {viewerCount} {viewerCount === 1 ? 'viewer' : 'viewers'}
                     </div>
                   </div>
-                  <div className="text-sm text-gray-600 font-semibold">
-                    {viewerCount} {viewerCount === 1 ? 'viewer' : 'viewers'}
+                  <div className="cs-stream-id">
+                    Stream ID: <span>{streamId}</span>
                   </div>
                 </div>
-              </div>
-              
-              <div className="bg-black rounded-lg overflow-hidden aspect-video relative">
-                <video
-                  ref={localVideoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                />
-                
-                {!videoEnabled && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-gray-900 bg-opacity-70 text-white">
-                    <div className="text-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                      <p>Video is disabled</p>
+
+                {/* Stream Stats */}
+                <div className="cs-stream-stats">
+                  <h3>Stream Statistics</h3>
+                  <div className="cs-stats-grid">
+                    <div className="cs-stat-item">
+                      <div className="cs-stat-label">Resolution</div>
+                      <div className="cs-stat-value">{streamStats.resolution}</div>
+                    </div>
+                    <div className="cs-stat-item">
+                      <div className="cs-stat-label">Frame Rate</div>
+                      <div className="cs-stat-value">{streamStats.frameRate} fps</div>
+                    </div>
+                    <div className="cs-stat-item">
+                      <div className="cs-stat-label">Viewers</div>
+                      <div className="cs-stat-value">{viewerCount}</div>
                     </div>
                   </div>
-                )}
-              </div>
-              
-              <div className="p-4">
-                <div className="mb-2 text-sm text-gray-600">
-                  <div>Resolution: {streamStats.resolution}</div>
-                  <div>Frame Rate: {streamStats.frameRate} fps</div>
                 </div>
-                
-                <div className="flex flex-wrap gap-2 mb-4">
-                  <button
-                    onClick={toggleVideo}
-                    className={`flex items-center py-2 px-4 rounded-lg transition ${
-                      videoEnabled ? 'bg-gray-200 hover:bg-gray-300' : 'bg-red-100 text-red-700 hover:bg-red-200'
-                    }`}
-                  >
-                    {videoEnabled ? 'Disable Video' : 'Enable Video'}
-                  </button>
+
+                {/* Stream Controls */}
+                <div className="cs-stream-controls">
+                  <h3>Stream Controls</h3>
+                  <div className="cs-controls-grid">
+                    <button
+                      onClick={toggleVideo}
+                      className={`cs-control-btn ${videoEnabled ? 'enabled' : 'disabled'}`}
+                    >
+                      {videoEnabled ? '📹 Disable Video' : '📹 Enable Video'}
+                    </button>
+                    
+                    <button
+                      onClick={toggleAudio}
+                      className={`cs-control-btn ${audioEnabled ? 'enabled' : 'disabled'}`}
+                    >
+                      {audioEnabled ? '🎤 Disable Audio' : '🎤 Enable Audio'}
+                    </button>
+                    
+                    <button
+                      onClick={restartVideo}
+                      className="cs-control-btn action"
+                    >
+                      🔄 Restart Video
+                    </button>
+                  </div>
                   
-                  <button
-                    onClick={toggleAudio}
-                    className={`flex items-center py-2 px-4 rounded-lg transition ${
-                      audioEnabled ? 'bg-gray-200 hover:bg-gray-300' : 'bg-red-100 text-red-700 hover:bg-red-200'
-                    }`}
-                  >
-                    {audioEnabled ? 'Disable Audio' : 'Enable Audio'}
-                  </button>
-                  
-                  <button
-                    onClick={restartVideo}
-                    className="flex items-center py-2 px-4 bg-gray-200 rounded-lg hover:bg-gray-300 transition"
-                  >
-                    Restart Video
-                  </button>
-                </div>
-                
-                <div className="flex justify-between items-center">
                   <button
                     onClick={stopStream}
-                    className="bg-red-600 text-white py-2 px-6 rounded-lg hover:bg-red-700 transition"
+                    className="cs-stop-stream-btn"
                   >
-                    Stop Streaming
+                    🛑 Stop Streaming
                   </button>
-                  
-                  <div className="text-gray-600 text-sm">
-                    Share link: 
-                    <span className="font-mono bg-gray-100 p-1 rounded ml-1">
-                      {window.location.origin}/view/{streamId}
-                    </span>
+                </div>
+
+                {/* Share Link */}
+                <div className="cs-share-section">
+                  <h3>Share Your Stream</h3>
+                  <div className="cs-share-link">
+                    {window.location.origin}/view/{streamId}
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-          
-          {/* Chat component for the streamer */}
-          <div className="w-full lg:w-96 h-[500px]">
-            <Chat 
-              username={username}
-              streamId={streamId}
-              socket={socket}
-            />
+            
+            {/* Chat component for the streamer */}
+            <div className="cs-chat-sidebar">
+              <Chat 
+                username={username}
+                streamId={streamId}
+                socket={socket}
+                hasJoined={false}
+                hasRequestedJoin={false}
+                onRequestJoin={() => {}}
+                onCiteSources={() => {}}
+                cameraEnabled={videoEnabled}
+                micEnabled={audioEnabled}
+                onCameraToggle={toggleVideo}
+                onMicToggle={toggleAudio}
+              />
+            </div>
           </div>
         </div>
       )}
