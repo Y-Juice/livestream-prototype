@@ -19,6 +19,14 @@ interface ChatProps {
   username: string
   streamId: string
   socket: Socket
+  hasJoined?: boolean
+  hasRequestedJoin?: boolean
+  onRequestJoin?: () => void
+  onCiteSources?: () => void
+  cameraEnabled?: boolean
+  micEnabled?: boolean
+  onCameraToggle?: () => void
+  onMicToggle?: () => void
 }
 
 // Common offensive words to filter
@@ -27,7 +35,7 @@ const PROFANITY_LIST = [
   'dick', 'piss', 'nigger', 'nigga', 'retard', 'faggot', 'fag', 'whore'
 ];
 
-const Chat = ({ username, streamId, socket }: ChatProps) => {
+const Chat = ({ username, streamId, socket, hasJoined, hasRequestedJoin, onRequestJoin, onCiteSources, cameraEnabled, micEnabled, onCameraToggle, onMicToggle }: ChatProps) => {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [messageInput, setMessageInput] = useState('')
   const [error, setError] = useState<string>('')
@@ -442,6 +450,52 @@ const Chat = ({ username, streamId, socket }: ChatProps) => {
           ))
         )}
         <div ref={messagesEndRef} />
+      </div>
+      
+      {/* Action Buttons */}
+      <div className="p-3 border-t border-gray-200 space-y-2">
+        {!hasJoined && (
+          <button 
+            className="w-full bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg font-medium transition disabled:bg-gray-400 disabled:cursor-not-allowed"
+            onClick={onRequestJoin}
+            disabled={hasRequestedJoin}
+          >
+            {hasRequestedJoin ? '⏳ Request Sent' : '🤝 Request to Join'}
+          </button>
+        )}
+        
+        <button 
+          className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg font-medium transition"
+          onClick={onCiteSources}
+        >
+          📚 Cite Sources
+        </button>
+
+        {/* User controls when joined */}
+        {hasJoined && (
+          <div className="grid grid-cols-2 gap-2">
+            <button 
+              className={`py-2 px-4 rounded-lg font-medium transition ${
+                cameraEnabled 
+                  ? 'bg-green-500 hover:bg-green-600 text-white' 
+                  : 'bg-red-500 hover:bg-red-600 text-white'
+              }`}
+              onClick={onCameraToggle}
+            >
+              {cameraEnabled ? '📹 Camera On' : '📹 Camera Off'}
+            </button>
+            <button 
+              className={`py-2 px-4 rounded-lg font-medium transition ${
+                micEnabled 
+                  ? 'bg-green-500 hover:bg-green-600 text-white' 
+                  : 'bg-red-500 hover:bg-red-600 text-white'
+              }`}
+              onClick={onMicToggle}
+            >
+              {micEnabled ? '🎤 Mic On' : '🔇 Mic Off'}
+            </button>
+          </div>
+        )}
       </div>
       
       <form onSubmit={handleSendMessage} className="p-3 border-t border-gray-200">

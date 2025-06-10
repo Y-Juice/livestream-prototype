@@ -100,43 +100,43 @@ const Login: React.FC = () => {
           
           <div className="form-group">
             <label htmlFor="email" className="form-label">
-              Email address
-            </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              required
+                Email address
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                required
               className="form-input"
               placeholder="Enter your email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
           
           <div className="form-group">
             <label htmlFor="password" className="form-label">
-              Password
-            </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              required
+                Password
+              </label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                required
               className="form-input"
               placeholder="Enter your password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
           </div>
 
-          <button
-            type="submit"
-            disabled={isLoading}
+            <button
+              type="submit"
+              disabled={isLoading}
             className="submit-btn"
-          >
-            {isLoading ? 'Signing in...' : 'Sign in'}
-          </button>
+            >
+              {isLoading ? 'Signing in...' : 'Sign in'}
+            </button>
         </form>
       </div>
     </div>

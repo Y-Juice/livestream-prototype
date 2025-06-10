@@ -3,7 +3,7 @@
   min-height: 100vh;
   padding: 0;
   color: white;
-  max-width: calc(100vw - 260px);
+  max-width: 96%;
   overflow-x: hidden;
 }
 

@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import YouTubeVideos from '../pages/YouTubeVideos'
 import CategoriesCarousel from '../components/CategoriesCarousel'
 import WelcomeSection from '../components/WelcomeSection'
+import SourcesCarousel from '../components/SourcesCarousel'
 import '../css/Home.css'
 
 interface Stream {
@@ -27,15 +28,20 @@ const Home = ({ activeStreams }: HomeProps) => {
         {/* Welcome Section */}
         <WelcomeSection />
 
+        {/* Sacred Sources Carousel */}
+        <div className="sources-section">
+          <SourcesCarousel />
+        </div>
+
         {/* Featured Streams - Only Newest Content */}
         <div className="featured-section">
           <YouTubeVideos activeStreams={activeStreams} showOnlyNewest={true} />
         </div>
 
         {/* Categories Carousel */}
-        <div className="categories-section">
+          <div className="categories-section">
           <CategoriesCarousel />
-        </div>
+          </div>
       </div>
     </div>
   )

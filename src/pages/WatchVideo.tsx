@@ -46,25 +46,47 @@ const WatchVideo = () => {
 
   return (
     <div className="wv-container">
-      <Link to="/" className="wv-back">&larr; Back to Home</Link>
-      <div className="wv-player-wrapper">
-        {videoId ? (
-          <iframe
-            className="wv-player"
-            src={`https://www.youtube.com/embed/${videoId}`}
-            title={video.title}
-            frameBorder="0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-          />
-        ) : (
-          <p>Invalid YouTube URL</p>
-        )}
-      </div>
-      <div className="wv-info">
-        <h2 className="wv-title">{video.title}</h2>
-        <p className="wv-channel">{video.channel_name}</p>
-        <p className="wv-category">Category: {video.category}</p>
+      <div className="wv-layout">
+        {/* Video Section */}
+        <div className="wv-video-section">
+          <div className="wv-player-wrapper">
+            {videoId ? (
+              <iframe
+                className="wv-player"
+                src={`https://www.youtube.com/embed/${videoId}`}
+                title={video.title}
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            ) : (
+              <p>Invalid YouTube URL</p>
+            )}
+          </div>
+          
+          {/* Video Info */}
+          <div className="wv-info">
+            <h1 className="wv-title">{video.title}</h1>
+            <div className="wv-metadata">
+              <span className="wv-channel">{video.channel_name}</span>
+              <span className="wv-category">• {video.category}</span>
+            </div>
+            <div className="wv-description">
+              <p>Video description would go here. This is a placeholder for the video description content.</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Comments Section */}
+        <div className="wv-sidebar">
+          <div className="wv-comments-section">
+            <h3 className="wv-comments-title">Comments</h3>
+            <div className="wv-comments-placeholder">
+              <p>Comments will be displayed here for YouTube videos.</p>
+              <p>This is a placeholder comment section.</p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

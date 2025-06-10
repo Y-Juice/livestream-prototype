@@ -15,9 +15,9 @@ import ProtectedRoute from './components/auth/ProtectedRoute'
 // Components
 import Home from './pages/Home'
 import CreateStream from './components/CreateStream'
-import ViewStream from './components/ViewStream'
 
 import WatchVideo from './pages/WatchVideo'
+import WatchStream from './pages/WatchStream'
 import CategoryPage from './pages/CategoryPage'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
@@ -25,6 +25,9 @@ import Browse from './pages/Browse'
 import Following from './pages/Following'
 import Library from './pages/Library'
 import Profile from './pages/Profile'
+import Quran from './pages/Quran'
+import Bible from './pages/Bible'
+import Hadith from './pages/Hadith'
 
 // Create socket connection
 const createSocket = (): Socket => {
@@ -39,6 +42,7 @@ function App() {
   const [username, setUsername] = useState<string>('')
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false)
   const [activeStreams, setActiveStreams] = useState<Stream[]>([])
+  const [, setConnectionError] = useState<string>('')
   
   const socketRef = useRef<Socket | null>(null)
 
@@ -231,9 +235,9 @@ const AppContent = ({ username, isLoggedIn, handleLogout, activeStreams, socketR
             <Route
               path="/"
               element={
-                <Home 
-                  activeStreams={activeStreams}
-                />
+                  <Home 
+                    activeStreams={activeStreams}
+                  />
               }
             />
             <Route 
@@ -280,10 +284,13 @@ const AppContent = ({ username, isLoggedIn, handleLogout, activeStreams, socketR
               path="/view/:streamId" 
               element={
                 isLoggedIn 
-                  ? <ViewStream username={username} socket={socketRef.current!} /> 
+                  ? <WatchStream username={username} socket={socketRef.current!} /> 
                   : <Navigate to="/" />
               } 
             />
+            <Route path="/quran" element={<Quran />} />
+            <Route path="/bible" element={<Bible />} />
+            <Route path="/hadith" element={<Hadith />} />
             <Route path="/video/:id" element={<WatchVideo />} />
             <Route path="/category/:category" element={<CategoryPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />

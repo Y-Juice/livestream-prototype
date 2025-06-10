@@ -1,0 +1,522 @@
+.source-reader-container {
+  background: #1a1a1a;
+  min-height: 100vh;
+  padding: 2rem;
+  padding-top: 90px;
+  color: white;
+  margin-left: 240px;
+  width: 90%;
+  max-width: calc(90vw - 240px);
+}
+
+/* Header Section */
+.source-header {
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.source-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem 0;
+  color: white;
+}
+
+.source-subtitle {
+  color: #888;
+  margin: 0 0 2rem 0;
+  font-size: 1.1rem;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Mode Toggle */
+.mode-toggle {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.mode-btn {
+  background: #2d2d2d;
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  border: 1px solid #444;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.mode-btn:hover {
+  background: #3a3a3a;
+  border-color: #555;
+}
+
+.mode-btn.active {
+  background: linear-gradient(135deg, #10b981, #059669);
+  border-color: #10b981;
+  color: white;
+}
+
+/* Search Section */
+.search-section {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.search-bar {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.search-input {
+  flex: 1;
+  background: #2d2d2d;
+  border: 1px solid #444;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  color: white;
+  font-size: 1rem;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.search-input::placeholder {
+  color: #666;
+}
+
+.search-btn {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.search-btn:hover {
+  background: linear-gradient(135deg, #059669, #047857);
+  transform: translateY(-1px);
+}
+
+/* Search Results */
+.search-results h3 {
+  color: white;
+  margin-bottom: 1rem;
+  font-size: 1.3rem;
+}
+
+.results-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.result-item {
+  background: #2d2d2d;
+  border-radius: 8px;
+  padding: 1.5rem;
+  border: 1px solid #333;
+  transition: border-color 0.3s ease;
+}
+
+.result-item:hover {
+  border-color: #10b981;
+}
+
+.result-reference {
+  color: #10b981;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.result-text {
+  color: white;
+  line-height: 1.6;
+  margin-bottom: 0.5rem;
+}
+
+.result-translation {
+  color: #ccc;
+  font-style: italic;
+  line-height: 1.6;
+}
+
+/* Browse Section */
+.browse-section {
+  height: calc(100vh - 250px);
+  min-height: 700px;
+}
+
+.browse-layout {
+  display: flex;
+  height: 100%;
+  gap: 2rem;
+}
+
+/* Bible-specific layout */
+.browse-layout.bible-layout {
+  display: grid;
+  grid-template-columns: 70% 30%;
+  grid-template-rows: 300px 1fr;
+  gap: 2rem;
+  height: 100%;
+}
+
+.browse-layout.bible-layout .chapters-sidebar {
+  grid-column: 1;
+  grid-row: 1;
+  width: 100%;
+}
+
+.browse-layout.bible-layout .bible-chapters-sidebar {
+  grid-column: 2;
+  grid-row: 1;
+  width: 100%;
+}
+
+.browse-layout.bible-layout .content-display {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+
+/* Chapters Sidebar */
+.chapters-sidebar {
+  width: 300px;
+  background: #2d2d2d;
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid #333;
+  overflow-y: auto;
+}
+
+/* Bible Chapters Sidebar */
+.bible-chapters-sidebar {
+  width: 250px;
+  background: #333;
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid #444;
+  overflow-y: auto;
+}
+
+.chapters-sidebar h3,
+.bible-chapters-sidebar h3 {
+  color: white;
+  margin: 0 0 1rem 0;
+  font-size: 1.2rem;
+  text-align: center;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #444;
+}
+
+.chapters-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.chapter-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 1px solid transparent;
+}
+
+.chapter-item:hover {
+  background: #3a3a3a;
+  border-color: #555;
+}
+
+.chapter-item.active {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: #10b981;
+}
+
+.chapter-number {
+  background: #444;
+  color: white;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.chapter-item.active .chapter-number {
+  background: #10b981;
+}
+
+.chapter-info {
+  flex: 1;
+}
+
+.chapter-name {
+  color: white;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.chapter-meta {
+  color: #888;
+  font-size: 0.8rem;
+}
+
+/* Content Display */
+.content-display {
+  flex: 1;
+  background: #2d2d2d;
+  border-radius: 12px;
+  padding: 2rem;
+  border: 1px solid #333;
+  overflow-y: auto;
+  min-height: 400px;
+}
+
+/* Bible content display gets extra height */
+.browse-layout.bible-layout .content-display {
+  min-height: 500px;
+}
+
+.chapter-content h2 {
+  color: white;
+  margin: 0 0 2rem 0;
+  font-size: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #444;
+}
+
+.verses-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.verse-item {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem 0;
+  border-bottom: 1px solid #333;
+}
+
+.verse-item:last-child {
+  border-bottom: none;
+}
+
+.verse-number {
+  background: #444;
+  color: white;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.verse-content {
+  flex: 1;
+}
+
+.verse-text {
+  color: white;
+  line-height: 1.8;
+  margin-bottom: 0.5rem;
+  font-size: 1.1rem;
+}
+
+.verse-translation {
+  color: #ccc;
+  font-style: italic;
+  line-height: 1.6;
+  padding-left: 1rem;
+  border-left: 3px solid #10b981;
+}
+
+/* Content Placeholder */
+.content-placeholder {
+  text-align: center;
+  color: #888;
+  padding: 4rem 2rem;
+}
+
+.content-placeholder h3 {
+  color: white;
+  margin-bottom: 1rem;
+}
+
+/* Loading and Error States */
+.loading-state,
+.error-state {
+  text-align: center;
+  padding: 2rem;
+  color: white;
+}
+
+.error-state {
+  color: #ef4444;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .source-reader-container {
+    margin-left: 220px;
+    width: 88%;
+    max-width: calc(88vw - 220px);
+    padding: 1.5rem;
+    padding-top: 90px;
+  }
+  
+  .browse-layout {
+    gap: 1.5rem;
+  }
+  
+  .browse-layout.bible-layout {
+    grid-template-columns: 250px 200px;
+  }
+  
+  .chapters-sidebar {
+    width: 250px;
+  }
+  
+  .bible-chapters-sidebar {
+    width: 200px;
+  }
+}
+
+@media (max-width: 768px) {
+  .source-reader-container {
+    margin-left: 0;
+    width: 95%;
+    max-width: 95vw;
+    padding: 1rem;
+    padding-top: 80px;
+  }
+  
+  .source-title {
+    font-size: 2rem;
+  }
+  
+  .mode-toggle {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .browse-layout {
+    flex-direction: column;
+    height: auto;
+  }
+  
+  .browse-layout.bible-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 300px 1fr;
+  }
+  
+  .browse-layout.bible-layout .chapters-sidebar {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  
+  .browse-layout.bible-layout .bible-chapters-sidebar {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  
+  .browse-layout.bible-layout .content-display {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    min-height: 400px;
+  }
+  
+  .chapters-sidebar,
+  .bible-chapters-sidebar {
+    width: 100%;
+    max-height: 300px;
+  }
+  
+  .content-display {
+    min-height: 400px;
+  }
+  
+  .search-bar {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 480px) {
+  .source-reader-container {
+    padding: 0.75rem;
+    padding-top: 75px;
+  }
+  
+  .source-title {
+    font-size: 1.75rem;
+  }
+  
+  .mode-btn {
+    padding: 0.6rem 1.2rem;
+    font-size: 0.85rem;
+  }
+  
+  .browse-layout.bible-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto 1fr;
+  }
+  
+  .browse-layout.bible-layout .chapters-sidebar {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  
+  .browse-layout.bible-layout .bible-chapters-sidebar {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  
+  .browse-layout.bible-layout .content-display {
+    grid-column: 1;
+    grid-row: 3;
+  }
+  
+  .chapters-sidebar,
+  .bible-chapters-sidebar,
+  .content-display {
+    padding: 1rem;
+  }
+  
+  .verse-item {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .verse-number {
+    align-self: flex-start;
+  }
+} 

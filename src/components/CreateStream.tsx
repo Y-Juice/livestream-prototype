@@ -446,10 +446,14 @@ const CreateStream = ({ username, socket }: CreateStreamProps) => {
     const handleAnswer = ({ from, answer }: { from: string, answer: RTCSessionDescriptionInit }) => {
       const peerConnection = peerConnectionsRef.current.get(from)
       
-      if (peerConnection && peerConnection.signalingState !== 'closed') {
+      if (peerConnection && 
+          peerConnection.signalingState !== 'closed' && 
+          peerConnection.signalingState === 'have-local-offer') {
         peerConnection.setRemoteDescription(new RTCSessionDescription(answer))
           .then(() => console.log(`Set remote description for ${from}`))
           .catch(err => console.error('Error setting remote description:', err))
+      } else {
+        console.log(`Cannot set answer from ${from}, connection state: ${peerConnection?.signalingState || 'null'}`)
       }
     }
     
@@ -457,9 +461,13 @@ const CreateStream = ({ username, socket }: CreateStreamProps) => {
     const handleIceCandidate = ({ from, candidate }: { from: string, candidate: RTCIceCandidateInit }) => {
       const peerConnection = peerConnectionsRef.current.get(from)
       
-      if (peerConnection && peerConnection.signalingState !== 'closed') {
+      if (peerConnection && 
+          peerConnection.signalingState !== 'closed' && 
+          peerConnection.remoteDescription) {
         peerConnection.addIceCandidate(new RTCIceCandidate(candidate))
           .catch(err => console.error('Error adding ICE candidate:', err))
+      } else {
+        console.log(`Cannot add ICE candidate from ${from}, connection state: ${peerConnection?.signalingState || 'null'}`)
       }
     }
     

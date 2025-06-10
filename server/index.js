@@ -327,6 +327,253 @@ app.get('/api/videos/categories', async (req, res) => {
   }
 });
 
+// Religious Sources API Routes
+// Get all Quran data or search/filter
+app.get('/api/quran', async (req, res) => {
+  try {
+    const { search, chapter, limit = 100 } = req.query;
+    const collection = mongoose.connection.db.collection('quran');
+    
+    if (search) {
+      // Search functionality
+      const allData = await collection.findOne({});
+      if (!allData) {
+        return res.json([]);
+      }
+      
+      const results = [];
+      Object.keys(allData).forEach(chapterKey => {
+        if (chapterKey !== '_id' && Array.isArray(allData[chapterKey])) {
+          allData[chapterKey].forEach(verse => {
+            if (verse.text && verse.text.toLowerCase().includes(search.toLowerCase())) {
+              results.push(verse);
+            }
+          });
+        }
+      });
+      
+      res.json(results.slice(0, parseInt(limit)));
+      return;
+    }
+    
+    if (chapter) {
+      // Get specific chapter
+      const allData = await collection.findOne({});
+      if (!allData || !allData[chapter]) {
+        return res.json([]);
+      }
+      
+      res.json(allData[chapter]);
+      return;
+    }
+    
+    // Get all chapters overview (for sidebar)
+    const allData = await collection.findOne({});
+    if (!allData) {
+      return res.json([]);
+    }
+    
+    const chapters = [];
+    Object.keys(allData).forEach(key => {
+      if (key !== '_id' && Array.isArray(allData[key])) {
+        chapters.push({
+          _id: key,
+          number: parseInt(key),
+          name: `Surah ${key}`,
+          verses: allData[key].length
+        });
+      }
+    });
+    
+    res.json(chapters.sort((a, b) => a.number - b.number));
+  } catch (error) {
+    console.error('Error fetching Quran:', error);
+    res.status(500).json({ error: 'Failed to fetch Quran data' });
+  }
+});
+
+// Get Quran chapters list
+app.get('/api/quran/chapters', async (req, res) => {
+  try {
+    const collection = mongoose.connection.db.collection('quran');
+    const allData = await collection.findOne({});
+    
+    if (!allData) {
+      return res.json([]);
+    }
+    
+    const chapters = [];
+    Object.keys(allData).forEach(key => {
+      if (key !== '_id' && Array.isArray(allData[key])) {
+        chapters.push({
+          _id: key,
+          number: parseInt(key),
+          name: `Surah ${key}`,
+          verses: allData[key].length
+        });
+      }
+    });
+    
+    res.json(chapters.sort((a, b) => a.number - b.number));
+  } catch (error) {
+    console.error('Error fetching Quran chapters:', error);
+    res.status(500).json({ error: 'Failed to fetch Quran chapters' });
+  }
+});
+
+// Get specific Quran chapter
+app.get('/api/quran/chapter/:number', async (req, res) => {
+  try {
+    const chapterNumber = req.params.number;
+    const collection = mongoose.connection.db.collection('quran');
+    const allData = await collection.findOne({});
+    
+    if (!allData || !allData[chapterNumber]) {
+      return res.status(404).json({ error: 'Chapter not found' });
+    }
+    
+    res.json(allData[chapterNumber]);
+  } catch (error) {
+    console.error('Error fetching Quran chapter:', error);
+    res.status(500).json({ error: 'Failed to fetch Quran chapter' });
+  }
+});
+
+// Get all Bible data or search/filter
+app.get('/api/bible', async (req, res) => {
+  try {
+    const { search, book, limit = 100 } = req.query;
+    const collection = mongoose.connection.db.collection('bible');
+    
+    let results = [];
+    
+    if (search) {
+      // Search within all chapters and verses
+      const allBooks = await collection.find({}).toArray();
+      
+      allBooks.forEach(bookData => {
+        if (bookData.chapters && Array.isArray(bookData.chapters)) {
+          bookData.chapters.forEach((chapter, chapterIndex) => {
+            if (Array.isArray(chapter)) {
+              chapter.forEach((verse, verseIndex) => {
+                if (verse && typeof verse === 'string' && verse.toLowerCase().includes(search.toLowerCase())) {
+                  results.push({
+                    _id: `${bookData._id}-${chapterIndex + 1}-${verseIndex + 1}`,
+                    book: bookData.name,
+                    text: verse,
+                    chapter: chapterIndex + 1,
+                    verse: verseIndex + 1
+                  });
+                }
+              });
+            }
+          });
+        }
+      });
+      
+      results = results.slice(0, parseInt(limit));
+    } else if (book) {
+      // Get specific book with all its chapters
+      const bookData = await collection.findOne({ 
+        $or: [
+          { abbrev: book },
+          { name: book }
+        ]
+      });
+      
+      if (bookData) {
+        // Return the complete book data for frontend processing
+        results = bookData;
+      }
+    } else {
+      // Get all books overview
+      const allBooks = await collection.find({}).limit(parseInt(limit)).toArray();
+      results = allBooks.map(book => ({
+        _id: book._id,
+        name: book.name,
+        abbrev: book.abbrev,
+        chapters: book.chapters || []
+      }));
+    }
+    
+    res.json(results);
+  } catch (error) {
+    console.error('Error fetching Bible:', error);
+    res.status(500).json({ error: 'Failed to fetch Bible data' });
+  }
+});
+
+// Get all Hadith data or search/filter
+app.get('/api/hadith', async (req, res) => {
+  try {
+    const { search, collection: collectionParam, limit = 100 } = req.query;
+    const collection = mongoose.connection.db.collection('hadith');
+    
+    let query = {};
+    let results = [];
+    
+    if (search) {
+      // Search in hadith chapters
+      query = {
+        $or: [
+          { 'chapters.arabic': { $regex: search, $options: 'i' } },
+          { 'chapters.english': { $regex: search, $options: 'i' } }
+        ]
+      };
+      
+      const hadithBooks = await collection.find(query).limit(parseInt(limit)).toArray();
+      
+      hadithBooks.forEach(book => {
+        if (book.chapters && Array.isArray(book.chapters)) {
+          book.chapters.forEach(chapter => {
+            if ((chapter.arabic && chapter.arabic.toLowerCase().includes(search.toLowerCase())) ||
+                (chapter.english && chapter.english.toLowerCase().includes(search.toLowerCase()))) {
+              results.push({
+                _id: chapter.id || chapter._id,
+                collection: book.id,
+                collection_name: book.metadata?.english?.title || book.metadata?.arabic?.title,
+                hadith_number: chapter.id,
+                text: chapter.english,
+                arabic: chapter.arabic,
+                bookId: chapter.bookId
+              });
+            }
+          });
+        }
+      });
+    } else if (collectionParam) {
+      // Get specific hadith collection
+      const hadithBook = await collection.findOne({ id: parseInt(collectionParam) });
+      if (hadithBook && hadithBook.chapters) {
+        results = hadithBook.chapters.map(chapter => ({
+          _id: chapter.id || chapter._id,
+          collection: hadithBook.id,
+          collection_name: hadithBook.metadata?.english?.title || hadithBook.metadata?.arabic?.title,
+          hadith_number: chapter.id,
+          text: chapter.english,
+          arabic: chapter.arabic,
+          bookId: chapter.bookId
+        }));
+      }
+    } else {
+      // Get all hadith collections overview
+      const allCollections = await collection.find({}).limit(parseInt(limit)).toArray();
+      results = allCollections.map(book => ({
+        _id: book._id,
+        number: book.id,
+        name: book.metadata?.english?.title || book.metadata?.arabic?.title || `Collection ${book.id}`,
+        hadiths: book.chapters ? book.chapters.length : 0,
+        length: book.metadata?.length || 0
+      }));
+    }
+    
+    res.json(results);
+  } catch (error) {
+    console.error('Error fetching Hadith:', error);
+    res.status(500).json({ error: 'Failed to fetch Hadith data' });
+  }
+});
+
 // Helper function to enforce limits
 const enforceLimits = () => {
   // Limit the number of active streams
@@ -702,13 +949,134 @@ io.on('connection', (socket) => {
     }
   });
   
-  socket.on('ice-candidate', ({ target, candidate }) => {
+    socket.on('ice-candidate', ({ target, candidate }) => {
     const targetSocket = io.sockets.sockets.get(target);
     if (targetSocket) {
       targetSocket.emit('ice-candidate', { from: socket.id, candidate });
     }
   });
-  
+
+  // Check if user is streamer
+  socket.on('check-streamer', ({ streamId, username }) => {
+    const user = users.get(socket.id);
+    const stream = streams.get(streamId);
+    
+    if (user && stream) {
+      const isStreamer = stream.broadcaster === username;
+      socket.emit('streamer-status', { isStreamer });
+    }
+  });
+
+  // Handle join requests
+  socket.on('request-join', ({ streamId, username }) => {
+    const stream = streams.get(streamId);
+    if (!stream) {
+      socket.emit('error', { message: 'Stream not found' });
+      return;
+    }
+
+    // Find the broadcaster socket
+    const broadcasterSocket = Array.from(io.sockets.sockets.values())
+      .find(s => {
+        const userData = users.get(s.id);
+        return userData && userData.streamId === streamId && userData.role === 'broadcaster';
+      });
+
+    if (broadcasterSocket) {
+      // Send join request to broadcaster
+      broadcasterSocket.emit('join-request', { 
+        username, 
+        timestamp: Date.now() 
+      });
+    } else {
+      socket.emit('error', { message: 'Broadcaster not found' });
+    }
+  });
+
+  // Handle join request response
+  socket.on('respond-join-request', ({ streamId, requestUsername, accept }) => {
+    const user = users.get(socket.id);
+    const stream = streams.get(streamId);
+    
+    if (!user || !stream || stream.broadcaster !== user.username) {
+      socket.emit('error', { message: 'Not authorized' });
+      return;
+    }
+
+    // Find the requesting user's socket
+    const requestingSocket = Array.from(io.sockets.sockets.values())
+      .find(s => {
+        const userData = users.get(s.id);
+        return userData && userData.username === requestUsername;
+      });
+
+    if (requestingSocket) {
+      if (accept) {
+        // Add user to co-streamers
+        if (!stream.coStreamers) {
+          stream.coStreamers = new Set();
+        }
+        stream.coStreamers.add(requestingSocket.id);
+        
+        // Update user role
+        const requestingUser = users.get(requestingSocket.id);
+        if (requestingUser) {
+          requestingUser.role = 'co-streamer';
+        }
+        
+        requestingSocket.emit('join-accepted');
+        
+        // Notify all viewers that someone joined as co-streamer
+        io.to(streamId).emit('co-streamer-joined', { 
+          username: requestUsername 
+        });
+      } else {
+        requestingSocket.emit('join-rejected');
+      }
+    }
+  });
+
+  // Co-streamer WebRTC signaling
+  socket.on('co-streamer-offer', ({ streamId, offer }) => {
+    const user = users.get(socket.id);
+    if (!user) return;
+    
+    // Send offer to main broadcaster and other viewers
+    socket.to(streamId).emit('co-streamer-offer', {
+      from: socket.id,
+      offer
+    });
+  });
+
+  socket.on('co-streamer-answer', ({ target, answer }) => {
+    const targetSocket = io.sockets.sockets.get(target);
+    if (targetSocket) {
+      targetSocket.emit('co-streamer-answer', {
+        from: socket.id,
+        answer
+      });
+    }
+  });
+
+  socket.on('co-streamer-ice-candidate', ({ target, candidate, streamId }) => {
+    if (target) {
+      // Send to specific target
+      const targetSocket = io.sockets.sockets.get(target);
+      if (targetSocket) {
+        targetSocket.emit('co-streamer-ice-candidate', {
+          from: socket.id,
+          candidate
+        });
+      }
+    } else if (streamId) {
+      // Broadcast to stream
+      socket.to(streamId).emit('co-streamer-ice-candidate', {
+        from: socket.id,
+        candidate
+      });
+    }
+  });
+
   // Leave stream
   socket.on('leave-stream', () => {
     const user = users.get(socket.id);

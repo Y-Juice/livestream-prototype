@@ -1,10 +1,10 @@
 .welcome-section {
   position: relative;
-  width: 96%;
+  width: 79vw;
   height: 60vh;
   min-height: 400px;
   margin-bottom: 3rem;
-  margin-left: 4%;
+  margin-left: 0.7%;
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
