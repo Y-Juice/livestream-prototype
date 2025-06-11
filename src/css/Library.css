@@ -1,0 +1,157 @@
+.library-container {
+  background: #1a1a1a;
+  min-height: 100vh;
+  padding: 2rem;
+  color: white;
+  margin-left: 10vw;
+}
+
+.page-title {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem 0;
+  color: white;
+}
+
+.page-subtitle {
+  color: #888;
+  margin: 0 0 2rem 0;
+  font-size: 1.1rem;
+}
+
+/* Sources Grid */
+.sources-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 2fr));
+  gap: 2rem;
+  max-width: 1200px;
+  margin-top: 2rem;
+}
+
+.source-card {
+  background: #2d2d2d;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid #333;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  height: 52vh;
+}
+
+.source-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  border-color: #10b981;
+}
+
+.source-image-container {
+  width: 100%;
+  height: 200px;
+  overflow: hidden;
+  position: relative;
+}
+
+.source-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.source-card:hover .source-image {
+  transform: scale(1.05);
+}
+
+.source-content {
+  padding: 1.5rem;
+}
+
+.source-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 0.75rem 0;
+  color: white;
+}
+
+.source-description {
+  color: #ccc;
+  line-height: 1.6;
+  margin: 0;
+  font-size: 1rem;
+}
+
+@media (max-width: 1024px) {
+  .library-container {
+    margin-left: 220px;
+    max-width: calc(100vw - 220px);
+    padding: 1.5rem;
+    padding-top: 90px;
+  }
+  
+  .sources-grid {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .library-container {
+    margin-left: 0;
+    max-width: 100vw;
+    padding: 1rem;
+    padding-top: 80px;
+  }
+  
+  .page-title {
+    font-size: 1.5rem;
+  }
+  
+  .sources-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  
+  .source-image-container {
+    height: 180px;
+  }
+  
+  .source-content {
+    padding: 1.25rem;
+  }
+  
+  .source-title {
+    font-size: 1.3rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .library-container {
+    padding: 0.75rem;
+    padding-top: 75px;
+  }
+  
+  .page-title {
+    font-size: 1.3rem;
+  }
+  
+  .sources-grid {
+    gap: 1rem;
+  }
+  
+  .source-image-container {
+    height: 160px;
+  }
+  
+  .source-content {
+    padding: 1rem;
+  }
+  
+  .source-title {
+    font-size: 1.2rem;
+  }
+  
+  .source-description {
+    font-size: 0.9rem;
+  }
+} 

@@ -1,0 +1,282 @@
+.sidebar {
+  width: 240px;
+  height: 100vh;
+  background-color: #2d2d2d;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 100;
+  border-right: 1px solid #404040;
+}
+
+.sidebar-header {
+  padding: 1.5rem 1rem;
+  border-bottom: 1px solid #404040;
+}
+
+.sidebar-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  transition: transform 0.2s ease;
+}
+
+.sidebar-logo:hover {
+  transform: scale(1.05);
+}
+
+.logo-image {
+  max-width: 140px;
+  height: auto;
+  object-fit: contain;
+}
+
+.sidebar-nav {
+  flex: 1;
+  padding: 1rem 0;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  color: #ccc;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  border-radius: 0;
+  margin: 0 0.5rem;
+  border-radius: 0.5rem;
+}
+
+.nav-item:hover {
+  background-color: #404040;
+  color: white;
+}
+
+.nav-item.active {
+  background-color: #10b981;
+  color: white;
+}
+
+.nav-item.active:hover {
+  background-color: #059669;
+}
+
+.nav-icon {
+  font-size: 1.1rem;
+  width: 20px;
+  text-align: center;
+}
+
+.nav-icon-img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  filter: brightness(0.8);
+  transition: filter 0.2s ease;
+}
+
+.nav-item:hover .nav-icon-img {
+  filter: brightness(1);
+}
+
+.nav-item.active .nav-icon-img {
+  filter: brightness(1.2);
+}
+
+.recommended-section {
+  padding: 1rem;
+  border-top: 1px solid #404040;
+  border-bottom: 1px solid #404040;
+}
+
+.section-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #888;
+  margin: 0 0 1rem 0;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.recommended-channels {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.channel-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  transition: background-color 0.2s ease;
+  cursor: pointer;
+}
+
+.channel-item:hover {
+  background-color: #404040;
+}
+
+.channel-avatar {
+  width: 24px;
+  height: 24px;
+  background-color: #404040;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+}
+
+.channel-name {
+  flex: 1;
+  font-size: 0.875rem;
+  color: #ccc;
+}
+
+.channel-status {
+  color: #10b981;
+  font-size: 0.5rem;
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding: 1rem;
+  background-color: #10b981;
+}
+
+.profile-section {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: white;
+  text-decoration: none;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  transition: background-color 0.2s ease;
+}
+
+.profile-section:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.profile-avatar {
+  width: 32px;
+  height: 32px;
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+}
+
+.profile-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.profile-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: white;
+}
+
+.profile-action {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* Responsive design */
+@media (max-width: 1024px) {
+  .sidebar {
+    width: 200px;
+  }
+  
+  .sidebar-header {
+    padding: 1.2rem 0.8rem;
+  }
+  
+  .logo-image {
+    max-width: 120px;
+  }
+  
+  .nav-item {
+    padding: 0.6rem 0.8rem;
+    font-size: 0.9rem;
+    margin: 0 0.4rem;
+  }
+  
+  .recommended-section {
+    padding: 0.8rem;
+  }
+  
+  .sidebar-footer {
+    padding: 0.8rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    width: 240px;
+  }
+  
+  .sidebar.open {
+    transform: translateX(0);
+  }
+  
+  /* Hide sidebar by default on mobile */
+  .sidebar {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .sidebar {
+    width: 100%;
+  }
+  
+  .sidebar-header {
+    padding: 1rem;
+  }
+  
+  .logo-image {
+    max-width: 100px;
+  }
+  
+  .nav-item {
+    padding: 0.7rem 1rem;
+    font-size: 0.9rem;
+  }
+  
+  .recommended-section {
+    padding: 0.8rem;
+  }
+  
+  .channel-item {
+    padding: 0.4rem;
+  }
+  
+  .channel-name {
+    font-size: 0.8rem;
+  }
+  
+  .profile-section {
+    padding: 0.4rem;
+  }
+  
+  .profile-name {
+    font-size: 0.8rem;
+  }
+} 

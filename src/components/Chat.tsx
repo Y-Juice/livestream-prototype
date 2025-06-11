@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Socket } from 'socket.io-client'
 import ReligiousCitationSearch from './ReligiousCitationSearch'
+import '../css/Chat.css'
 
 interface SearchResult {
   text: string;
@@ -19,6 +20,14 @@ interface ChatProps {
   username: string
   streamId: string
   socket: Socket
+  hasJoined?: boolean
+  hasRequestedJoin?: boolean
+  onRequestJoin?: () => void
+  cameraEnabled?: boolean
+  micEnabled?: boolean
+  onCameraToggle?: () => void
+  onMicToggle?: () => void
+  onLeaveCoStreaming?: () => void
 }
 
 // Common offensive words to filter
@@ -27,17 +36,16 @@ const PROFANITY_LIST = [
   'dick', 'piss', 'nigger', 'nigga', 'retard', 'faggot', 'fag', 'whore'
 ];
 
-const Chat = ({ username, streamId, socket }: ChatProps) => {
+const Chat = ({ username, streamId, socket, hasJoined, hasRequestedJoin, onRequestJoin, cameraEnabled, micEnabled, onCameraToggle, onMicToggle, onLeaveCoStreaming }: ChatProps) => {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [messageInput, setMessageInput] = useState('')
-  const [error, setError] = useState<string>('')
+  const [error, setError] = useState<string | null>(null)
   const [showCitationSearch, setShowCitationSearch] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
-  const [isChatFocused, setIsChatFocused] = useState(true)
-  const [broadcaster, setBroadcaster] = useState<string>('')
+  const [isVisible, setIsVisible] = useState(true)
+  const [broadcaster, setBroadcaster] = useState<string | null>(null)
   const [warningCount, setWarningCount] = useState(0)
   const [isTimedOut, setIsTimedOut] = useState(false)
-  const [timeoutEndTime, setTimeoutEndTime] = useState<number | null>(null)
   const [timeoutRemaining, setTimeoutRemaining] = useState(0)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const citationButtonRef = useRef<HTMLButtonElement>(null)
@@ -55,10 +63,10 @@ const Chat = ({ username, streamId, socket }: ChatProps) => {
   // Track document visibility
   useEffect(() => {
     const handleVisibilityChange = () => {
-      setIsChatFocused(document.visibilityState === 'visible')
-      
-      // Reset unread count when document becomes visible
-      if (document.visibilityState === 'visible') {
+      if (document.hidden) {
+        setIsVisible(false)
+      } else {
+        setIsVisible(true)
         setUnreadCount(0)
       }
     }
@@ -73,18 +81,19 @@ const Chat = ({ username, streamId, socket }: ChatProps) => {
   // Track chat container focus
   useEffect(() => {
     const handleFocus = () => {
-      setIsChatFocused(true)
+      setIsVisible(true)
       setUnreadCount(0)
     }
     
     const handleBlur = () => {
-      setIsChatFocused(false)
+      setIsVisible(false)
     }
     
     // Add click event to the chat container to focus it
     const handleClick = () => {
-      setIsChatFocused(true)
-      setUnreadCount(0)
+      if (isVisible) {
+        setUnreadCount(0)
+      }
     }
     
     window.addEventListener('focus', handleFocus)
@@ -103,11 +112,11 @@ const Chat = ({ username, streamId, socket }: ChatProps) => {
         chatContainer.removeEventListener('click', handleClick)
       }
     }
-  }, [])
+  }, [isVisible])
   
   // Update document title when new messages arrive and chat is not focused
   useEffect(() => {
-    if (messages.length > 0 && !isChatFocused) {
+    if (messages.length > 0 && !isVisible) {
       const latestMessage = messages[messages.length - 1]
       
       // Increment unread count for new messages (not system messages)
@@ -115,7 +124,7 @@ const Chat = ({ username, streamId, socket }: ChatProps) => {
         setUnreadCount(prevCount => prevCount + 1)
       }
     }
-  }, [messages, isChatFocused])
+  }, [messages, isVisible])
   
   // Handle document title updates separately to avoid render loops
   useEffect(() => {
@@ -127,10 +136,10 @@ const Chat = ({ username, streamId, socket }: ChatProps) => {
     }
     
     // Reset unread count when chat gains focus
-    if (isChatFocused && unreadCount > 0) {
+    if (isVisible && unreadCount > 0) {
       setUnreadCount(0)
     }
-  }, [unreadCount, isChatFocused])
+  }, [unreadCount, isVisible])
   
   // Handle clicking outside citation search to close it
   useEffect(() => {
@@ -155,23 +164,22 @@ const Chat = ({ username, streamId, socket }: ChatProps) => {
   useEffect(() => {
     let intervalId: NodeJS.Timeout | null = null;
     
-    if (isTimedOut && timeoutEndTime) {
+    if (isTimedOut && timeoutRemaining > 0) {
       intervalId = setInterval(() => {
-        const remaining = Math.max(0, Math.ceil((timeoutEndTime - Date.now()) / 1000));
-        setTimeoutRemaining(remaining);
-        
-        if (remaining === 0) {
-          setIsTimedOut(false);
-          setTimeoutEndTime(null);
-          if (intervalId) clearInterval(intervalId);
-        }
+        setTimeoutRemaining(prev => {
+          if (prev <= 1) {
+            setIsTimedOut(false);
+            return 0;
+          }
+          return prev - 1;
+        });
       }, 1000);
     }
     
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
-  }, [isTimedOut, timeoutEndTime]);
+  }, [isTimedOut, timeoutRemaining]);
   
   // Load initial chat messages and setup event listeners
   useEffect(() => {
@@ -225,7 +233,7 @@ const Chat = ({ username, streamId, socket }: ChatProps) => {
       setError(message)
       
       // Clear error after 5 seconds
-      setTimeout(() => setError(''), 5000)
+      setTimeout(() => setError(null), 5000)
     }
     
     // Request chat history only once when component mounts
@@ -279,68 +287,41 @@ const Chat = ({ username, streamId, socket }: ChatProps) => {
   
   // Handle user timeout
   const timeoutUser = () => {
-    // Set timeout for 60 seconds (1 minute)
-    const timeoutDuration = 60 * 1000;
-    const endTime = Date.now() + timeoutDuration;
-    
-    setIsTimedOut(true);
-    setTimeoutEndTime(endTime);
-    setTimeoutRemaining(60);
-    
-    // Add system message showing timeout
-    const systemMessage: ChatMessage = {
-      username: 'System',
-      message: `${username} has been timed out for 60 seconds due to multiple violations.`,
-      timestamp: Date.now(),
-      isSystem: true
-    };
-    
-    setMessages(prev => [...prev, systemMessage]);
-    
-    // Auto reset warning count after timeout
-    setTimeout(() => {
-      setWarningCount(0);
-    }, timeoutDuration);
+    setWarningCount(prev => {
+      const newCount = prev + 1;
+      if (newCount >= 3) {
+        setIsTimedOut(true);
+        setTimeoutRemaining(30); // 30 second timeout
+        return 0; // Reset warning count after timeout
+      }
+      return newCount;
+    });
   };
   
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!messageInput.trim()) return
-    
-    // Check if user is timed out
-    if (isTimedOut) {
-      setError(`You are timed out for ${timeoutRemaining} more seconds.`);
-      return;
-    }
+    if (!messageInput.trim() || isTimedOut) return
     
     // Check for profanity
     if (containsProfanity(messageInput)) {
-      const newWarningCount = warningCount + 1;
-      setWarningCount(newWarningCount);
-      
-      // Create warning message
-      let warningMessage: string;
-      
-      if (newWarningCount >= 3) {
-        warningMessage = `Warning (${newWarningCount}/3): Your message contains inappropriate language. You have been timed out for 60 seconds.`;
-        timeoutUser();
-      } else {
-        warningMessage = `Warning (${newWarningCount}/3): Your message contains inappropriate language and was not sent.`;
-      }
-      
-      setError(warningMessage);
-      
-      // Clear error after 5 seconds
-      setTimeout(() => setError(''), 5000);
+      timeoutUser();
+      setError('Your message contains inappropriate language. Please keep the chat respectful.');
+      setTimeout(() => setError(null), 5000);
       return;
     }
     
     // Send message to server
+    const newMessage: ChatMessage = {
+      username,
+      message: messageInput.trim(),
+      timestamp: Date.now()
+    };
+    
     socket.emit('send-chat-message', {
       streamId,
-      message: messageInput.trim()
-    })
+      message: newMessage
+    });
     
     // Clear input
     setMessageInput('')
@@ -372,70 +353,68 @@ const Chat = ({ username, streamId, socket }: ChatProps) => {
   }
   
   return (
-    <div ref={chatContainerRef} className="bg-white rounded-lg shadow-md flex flex-col h-full">
-      <div className="p-3 border-b border-gray-200 flex justify-between items-center">
-        <h3 className="text-lg font-medium">Live Chat</h3>
+    <div ref={chatContainerRef} className="chat-container">
+      <div className="chat-header">
+        <h3 className="chat-title">Live Chat</h3>
         {unreadCount > 0 && (
-          <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-500 rounded-full">
+          <span className="unread-badge">
             {unreadCount}
           </span>
         )}
       </div>
       
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-3 py-2 m-2 rounded">
+        <div className="error-message">
           {error}
         </div>
       )}
       
       {isTimedOut && (
-        <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-3 py-2 m-2 rounded">
+        <div className="timeout-message">
           You are timed out. You can send messages again in {timeoutRemaining} seconds.
         </div>
       )}
       
       {!isTimedOut && warningCount > 0 && (
-        <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-3 py-2 m-2 rounded text-sm">
+        <div className="warning-message">
           Warning status: {warningCount}/3
         </div>
       )}
       
-      <div className="flex-1 overflow-y-auto p-3 space-y-3">
+      <div className="messages-container">
         {messages.length === 0 ? (
-          <p className="text-gray-500 text-center">No messages yet. Be the first to say something!</p>
+          <p className="no-messages">No messages yet. Be the first to say something!</p>
         ) : (
           messages.map((msg, index) => (
-            <div key={index} className={`flex items-start space-x-2 ${!msg.isSystem && msg.username === username ? 'justify-end' : ''}`}>
+            <div key={index} className={`message-wrapper ${!msg.isSystem && msg.username === username ? 'user-message' : ''}`}>
               {msg.isSystem ? (
-                <div className="w-full text-center">
-                  <span className="bg-gray-200 text-gray-700 text-xs px-2 py-1 rounded-full">
+                <div className="system-message">
+                  <span className="system-message-badge">
                     {msg.message}
                   </span>
                 </div>
               ) : (
                 <div 
-                  className={`
-                    max-w-[80%] rounded-lg p-2 
-                    ${msg.username === username 
-                      ? 'bg-blue-100' 
+                  className={`message-bubble ${
+                    msg.username === username 
+                      ? 'user' 
                       : isBroadcaster(msg.username)
-                        ? 'bg-purple-100 border border-purple-200' // Special style for broadcaster
-                        : 'bg-gray-100'
-                    }
-                  `}
+                        ? 'broadcaster'
+                        : 'other'
+                  }`}
                 >
-                  <div className="flex justify-between items-center mb-1">
-                    <span className={`font-semibold text-sm ${isBroadcaster(msg.username) ? 'text-purple-700 flex items-center' : ''}`}>
+                  <div className="message-header">
+                    <span className={`message-username ${isBroadcaster(msg.username) ? 'broadcaster' : ''}`}>
                       {isBroadcaster(msg.username) && (
-                        <span className="inline-block bg-purple-600 text-white text-xs px-1 mr-1 rounded">
+                        <span className="host-badge">
                           HOST
                         </span>
                       )}
                       {msg.username}
                     </span>
-                    <span className="text-xs text-gray-500">{formatTime(msg.timestamp)}</span>
+                    <span className="message-timestamp">{formatTime(msg.timestamp)}</span>
                   </div>
-                  <p className="text-sm break-words">{msg.message}</p>
+                  <p className="message-text">{msg.message}</p>
                 </div>
               )}
             </div>
@@ -444,20 +423,59 @@ const Chat = ({ username, streamId, socket }: ChatProps) => {
         <div ref={messagesEndRef} />
       </div>
       
-      <form onSubmit={handleSendMessage} className="p-3 border-t border-gray-200">
-        <div className="flex items-center mb-2">
+      {/* Action Buttons */}
+      <div className="action-buttons">
+        {!hasJoined && (
+          <button 
+            className="join-button"
+            onClick={onRequestJoin}
+            disabled={hasRequestedJoin}
+          >
+            {hasRequestedJoin ? '⏳ Request Sent' : '🤝 Request to Join'}
+          </button>
+        )}
+        
+        {/* User controls when joined */}
+        {hasJoined && (
+          <div className="user-controls">
+            <div className="controls-grid">
+              <button 
+                className={`control-button ${cameraEnabled ? 'enabled' : 'disabled'}`}
+                onClick={onCameraToggle}
+              >
+                {cameraEnabled ? '📹 Camera On' : '📹 Camera Off'}
+              </button>
+              <button 
+                className={`control-button ${micEnabled ? 'enabled' : 'disabled'}`}
+                onClick={onMicToggle}
+              >
+                {micEnabled ? '🎤 Mic On' : '🔇 Mic Off'}
+              </button>
+            </div>
+            <button 
+              className="leave-button"
+              onClick={onLeaveCoStreaming}
+            >
+              🚪 Leave Co-Streaming
+            </button>
+          </div>
+        )}
+      </div>
+      
+      <form onSubmit={handleSendMessage} className="message-form">
+        <div className="citation-button-container">
           <button
             type="button"
             ref={citationButtonRef}
             onClick={toggleCitationSearch}
-            className="bg-gray-100 hover:bg-gray-200 text-gray-700 py-1 px-3 rounded-lg text-sm flex items-center mr-2"
+            className="citation-button"
             disabled={isTimedOut}
           >
-            <span className="mr-1">📚</span> Religious Citation
+            <span className="citation-icon">📚</span> Find Qoute
           </button>
         </div>
         
-        <div className="relative">
+        <div className="input-container">
           {showCitationSearch && (
             <div className="citation-search-container">
               <ReligiousCitationSearch 
@@ -467,13 +485,13 @@ const Chat = ({ username, streamId, socket }: ChatProps) => {
             </div>
           )}
           
-          <div className="flex space-x-2">
-            <div className="flex-1 relative">
+          <div className="input-row">
+            <div className="input-wrapper">
               <input
                 type="text"
                 value={messageInput}
                 onChange={(e) => setMessageInput(e.target.value)}
-                className={`w-full rounded-lg border ${isTimedOut ? 'bg-gray-100 border-gray-300' : 'border-gray-300'} px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400`}
+                className="message-input"
                 placeholder={isTimedOut ? "You are timed out..." : "Type a message..."}
                 maxLength={500}
                 disabled={isTimedOut}
@@ -481,7 +499,7 @@ const Chat = ({ username, streamId, socket }: ChatProps) => {
             </div>
             <button
               type="submit"
-              className={`${isTimedOut ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600'} text-white px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400`}
+              className={`send-button ${isTimedOut ? 'disabled' : 'enabled'}`}
               disabled={isTimedOut}
             >
               Send
