@@ -20,19 +20,19 @@
 .sidebar-logo {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  justify-content: center;
+  text-decoration: none;
+  transition: transform 0.2s ease;
 }
 
-.logo-icon {
-  font-size: 1.5rem;
-  color: #10b981;
+.sidebar-logo:hover {
+  transform: scale(1.05);
 }
 
-.sidebar-logo h2 {
-  margin: 0;
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #10b981;
+.logo-image {
+  max-width: 140px;
+  height: auto;
+  object-fit: contain;
 }
 
 .sidebar-nav {
@@ -71,6 +71,22 @@
   font-size: 1.1rem;
   width: 20px;
   text-align: center;
+}
+
+.nav-icon-img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  filter: brightness(0.8);
+  transition: filter 0.2s ease;
+}
+
+.nav-item:hover .nav-icon-img {
+  filter: brightness(1);
+}
+
+.nav-item.active .nav-icon-img {
+  filter: brightness(1.2);
 }
 
 .recommended-section {
@@ -190,8 +206,8 @@
     padding: 1.2rem 0.8rem;
   }
   
-  .sidebar-logo h2 {
-    font-size: 1.1rem;
+  .logo-image {
+    max-width: 120px;
   }
   
   .nav-item {
@@ -229,39 +245,38 @@
 @media (max-width: 480px) {
   .sidebar {
     width: 100%;
-    max-width: 280px;
   }
   
   .sidebar-header {
     padding: 1rem;
   }
   
-  .sidebar-logo h2 {
-    font-size: 1.2rem;
+  .logo-image {
+    max-width: 100px;
   }
   
   .nav-item {
-    padding: 0.8rem 1rem;
-    font-size: 1rem;
+    padding: 0.7rem 1rem;
+    font-size: 0.9rem;
   }
   
   .recommended-section {
-    padding: 1rem;
+    padding: 0.8rem;
   }
   
   .channel-item {
-    padding: 0.7rem;
+    padding: 0.4rem;
   }
   
   .channel-name {
-    font-size: 0.9rem;
+    font-size: 0.8rem;
   }
   
   .profile-section {
-    padding: 0.7rem;
+    padding: 0.4rem;
   }
   
   .profile-name {
-    font-size: 0.9rem;
+    font-size: 0.8rem;
   }
 } 

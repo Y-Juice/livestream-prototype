@@ -207,9 +207,37 @@
 .ytv-category-row {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
   gap: 0.5rem;
   color: #d1fae5;
   font-size: 0.8rem;
+}
+
+.ytv-category-row span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ytv-category-row span:first-child {
+  flex: 1;
+  min-width: 0;
+  font-weight: 500;
+}
+
+/* Category Icons */
+.category-icon {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 0.25rem;
+}
+
+.category-icon-img {
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+  filter: brightness(1.1);
 }
 
 /* Responsive design for video carousels */

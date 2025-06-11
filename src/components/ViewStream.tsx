@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Socket } from 'socket.io-client'
 import Chat from './Chat'
 import '../css/ViewStream.css'
+import libraryIcon from '../assets/library.png'
 
 interface ViewStreamProps {
   username: string
@@ -20,9 +21,16 @@ interface CoStreamer {
   stream?: MediaStream
 }
 
+interface StreamMetadata {
+  title?: string
+  description?: string
+  category?: string
+}
+
 const ViewStream = ({ username, socket, hasJoined, cameraEnabled, micEnabled, onCameraToggle, onMicToggle }: ViewStreamProps) => {
   const { streamId } = useParams<{ streamId: string }>()
   const [broadcaster, setBroadcaster] = useState<string>('')
+  const [streamMetadata, setStreamMetadata] = useState<StreamMetadata>({})
   const [isConnected, setIsConnected] = useState<boolean>(false)
   const [error, setError] = useState<string>('')
   const [videoVisible, setVideoVisible] = useState<boolean>(false)
@@ -42,6 +50,19 @@ const ViewStream = ({ username, socket, hasJoined, cameraEnabled, micEnabled, on
   const coStreamerVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map())
   
   const navigate = useNavigate()
+
+  const getCategoryIcon = (category: string): string | React.ReactNode => {
+    const icons: { [key: string]: string | React.ReactNode } = {
+      'History of Islam': <img src={libraryIcon} alt="History of Islam" className="category-icon-img" />,
+      'Feminism & Red Pill': '⚖️',
+      'Christianity': <img src={libraryIcon} alt="Christianity" className="category-icon-img" />,
+      'Atheism': '🔬',
+      'Refutations': '🛡️',
+      'Miracles of the Quran': <img src={libraryIcon} alt="Miracles of the Quran" className="category-icon-img" />,
+      "Speaker's Corner": '🎤'
+    }
+    return icons[category] || '📺'
+  }
 
   // Initialize local stream when user joins
   useEffect(() => {
@@ -155,40 +176,40 @@ const ViewStream = ({ username, socket, hasJoined, cameraEnabled, micEnabled, on
     
     // Only set srcObject if it's different to avoid interrupting playback
     if (remoteVideoRef.current.srcObject !== remoteStreamRef.current) {
-      console.log('Setting srcObject on video element')
-      remoteVideoRef.current.srcObject = remoteStreamRef.current
+        console.log('Setting srcObject on video element')
+        remoteVideoRef.current.srcObject = remoteStreamRef.current
     }
-    
+        
     // Only try to play if we have tracks and video is paused
     if (remoteStreamRef.current.getTracks().length > 0 && remoteVideoRef.current.paused) {
-      // Clear any existing timeout
-      if (playAttemptTimeoutRef.current) {
-        clearTimeout(playAttemptTimeoutRef.current)
-      }
-      
+          // Clear any existing timeout
+          if (playAttemptTimeoutRef.current) {
+            clearTimeout(playAttemptTimeoutRef.current)
+          }
+          
       console.log('Attempting to play video')
       
       const attemptPlayback = async (retryCount = 0) => {
-        if (retryCount >= 3) {
-          console.error('Max playback retry attempts reached')
-          setError('Could not start video playback. Please try refreshing.')
-          return
-        }
+                if (retryCount >= 3) {
+                  console.error('Max playback retry attempts reached')
+                  setError('Could not start video playback. Please try refreshing.')
+                  return
+                }
 
         try {
           await remoteVideoRef.current?.play()
-          console.log('Video playback started successfully')
-          setIsConnected(true)
+                    console.log('Video playback started successfully')
+                    setIsConnected(true)
           setVideoVisible(true)
-          setError('')
+                    setError('')
         } catch (err) {
-          console.error(`Error playing video (attempt ${retryCount + 1}):`, err)
+                    console.error(`Error playing video (attempt ${retryCount + 1}):`, err)
           if (retryCount < 2) {
-            setTimeout(() => attemptPlayback(retryCount + 1), 1000)
-          } else {
+                    setTimeout(() => attemptPlayback(retryCount + 1), 1000)
+        } else {
             setError('Could not start video playback. Please try refreshing.')
-          }
         }
+      }
       }
 
       attemptPlayback()
@@ -197,8 +218,6 @@ const ViewStream = ({ username, socket, hasJoined, cameraEnabled, micEnabled, on
       setError('No media tracks received. Please try refreshing.')
     }
   }
-
-
 
   useEffect(() => {
     console.log('Initializing ViewStream component', { streamId, username })
@@ -237,6 +256,11 @@ const ViewStream = ({ username, socket, hasJoined, cameraEnabled, micEnabled, on
         const stream = activeStreams.find(s => s.streamId === streamId)
         if (stream) {
           setBroadcaster(stream.broadcaster)
+          setStreamMetadata({
+            title: stream.title,
+            description: stream.description,
+            category: stream.category,
+          })
           console.log(`Broadcaster is: ${stream.broadcaster}`)
         }
         
@@ -387,14 +411,14 @@ const ViewStream = ({ username, socket, hasJoined, cameraEnabled, micEnabled, on
     }
   }, [streamId, socket, username, navigate])
 
-    const handleOfferInternal = async (broadcasterId: string, offer: RTCSessionDescriptionInit) => {
+  const handleOfferInternal = async (broadcasterId: string, offer: RTCSessionDescriptionInit) => {
     try {
       console.log('Setting up peer connection for offer')
       
       // Close existing peer connection if any
       if (peerConnectionRef.current) {
         console.log('Closing existing peer connection')
-        peerConnectionRef.current.close()
+            peerConnectionRef.current.close()
         peerConnectionRef.current = null
       }
       
@@ -421,13 +445,13 @@ const ViewStream = ({ username, socket, hasJoined, cameraEnabled, micEnabled, on
       pc.onicecandidate = (event) => {
         if (event.candidate) {
           console.log('Sending ICE candidate to broadcaster')
-          socket.emit('ice-candidate', { 
-            target: broadcasterId, 
-            candidate: event.candidate 
+          socket.emit('ice-candidate', {
+            target: broadcasterId,
+            candidate: event.candidate
           })
         }
       }
-      
+
       pc.onconnectionstatechange = () => {
         console.log('Connection state changed:', pc.connectionState)
         setConnectionState(pc.connectionState)
@@ -489,35 +513,35 @@ const ViewStream = ({ username, socket, hasJoined, cameraEnabled, micEnabled, on
 
   return (
     <div className="w-full">
-      <div className="relative bg-gray-800 rounded-lg shadow-md overflow-hidden">
-        {error && (
-          <div className="absolute inset-0 flex items-center justify-center z-10">
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded shadow-md">
-              {error}
+        <div className="relative bg-gray-800 rounded-lg shadow-md overflow-hidden">
+          {error && (
+            <div className="absolute inset-0 flex items-center justify-center z-10">
+              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded shadow-md">
+                {error}
+              </div>
             </div>
-          </div>
-        )}
-        
-        <div className="relative" ref={videoContainerRef}>
+          )}
+          
+          <div className="relative" ref={videoContainerRef}>
           {/* Main video layout */}
           <div className={`video-layout ${hasJoined || coStreamers.length > 0 ? 'split-screen' : 'single-screen'}`}>
             {/* Main stream video */}
             <div className="main-video">
-              <video 
-                ref={remoteVideoRef}
-                className={`w-full h-auto transition-opacity duration-300 ${videoVisible ? 'opacity-100' : 'opacity-0'}`}
-                autoPlay
-                playsInline
-                onClick={handleVideoClick}
+            <video 
+              ref={remoteVideoRef}
+              className={`w-full h-auto transition-opacity duration-300 ${videoVisible ? 'opacity-100' : 'opacity-0'}`}
+              autoPlay
+              playsInline
+              onClick={handleVideoClick}
                 style={{ minHeight: '200px', background: '#000' }}
-              />              
-              {!isConnected && !error && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="bg-black bg-opacity-70 p-4 rounded text-white">
-                    Connecting to stream...
-                  </div>
+            />
+            {!isConnected && !error && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="bg-black bg-opacity-70 p-4 rounded text-white">
+                  Connecting to stream...
                 </div>
-              )}
+              </div>
+            )}
             </div>
 
             {/* Co-streamer videos */}
@@ -576,33 +600,53 @@ const ViewStream = ({ username, socket, hasJoined, cameraEnabled, micEnabled, on
               </div>
             )}
           </div>
-        </div>
-        
-        <div className="p-4 bg-gray-900 text-white">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold">
-              {broadcaster ? `${broadcaster}'s stream` : 'Live Stream'}
-            </h2>
-            <button
-              onClick={handleLeaveStream}
-              className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm"
-            >
-              Leave Stream
-            </button>
           </div>
-          <div className="flex justify-between items-center mt-2">
-            <div className="text-sm text-gray-400">
-              {connectionState === 'connected' ? 'Connected' : 'Connecting...'}
-              {coStreamers.length > 0 && ` • ${coStreamers.length + (hasJoined ? 1 : 0)} co-streamers`}
+          
+          <div className="p-4 bg-gray-900 text-white">
+          <div className="flex justify-between items-center mb-3">
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-2">
+                <div>
+              <h2 className="text-xl font-semibold">
+                    {streamMetadata.title || (broadcaster ? `${broadcaster}'s stream` : 'Live Stream')}
+              </h2>
+                  {streamMetadata.category && (
+                    <div className="text-sm text-green-400 mt-1">
+                      <span className="category-icon">{getCategoryIcon(streamMetadata.category)}</span>
+                      <span>{streamMetadata.category}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              {streamMetadata.description && (
+                <p className="stream-description">
+                  {streamMetadata.description}
+                </p>
+              )}
+              <div className="text-sm text-gray-400">
+                Streamed by <span className="text-green-400 font-medium">{broadcaster}</span>
+              </div>
             </div>
-            <button 
-              className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm"
-              onClick={handleRefreshVideo}
-            >
-              Refresh Video
-            </button>
+              <button
+                onClick={handleLeaveStream}
+                className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm"
+              >
+                Leave Stream
+              </button>
+            </div>
+          <div className="flex justify-between items-center">
+              <div className="text-sm text-gray-400">
+                {connectionState === 'connected' ? 'Connected' : 'Connecting...'}
+              {coStreamers.length > 0 && ` • ${coStreamers.length + (hasJoined ? 1 : 0)} co-streamers`}
+              </div>
+              <button 
+                className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm"
+                onClick={handleRefreshVideo}
+              >
+                Refresh Video
+              </button>
+            </div>
           </div>
-        </div>
       </div>
     </div>
   )

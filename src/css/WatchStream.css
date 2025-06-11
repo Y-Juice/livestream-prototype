@@ -47,6 +47,11 @@
   min-width: 320px;
   height: fit-content;
   max-height: 600px;
+  background: #2d2d2d;
+  border: 1px solid #333;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
 }
 
 /* Stream and Chat Wrapper - Legacy (keeping for compatibility) */
@@ -361,6 +366,20 @@
   color: #ccc;
   line-height: 1.6;
   margin: 0;
+}
+
+/* Category Icons */
+.category-icon {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 0.5rem;
+}
+
+.category-icon-img {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  filter: brightness(0.9);
 }
 
 /* Join Request Popup */

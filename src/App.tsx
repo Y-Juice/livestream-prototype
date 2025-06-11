@@ -7,6 +7,9 @@ interface Stream {
   streamId: string
   broadcaster: string
   viewerCount: number
+  title?: string
+  description?: string
+  category?: string
 }
 import Login from './components/auth/Login'
 import Register from './components/auth/Register'

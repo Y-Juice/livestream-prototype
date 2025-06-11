@@ -699,7 +699,10 @@ io.on('connection', (socket) => {
     const activeStreams = Array.from(streams.entries()).map(([streamId, stream]) => ({
       streamId,
       broadcaster: stream.broadcaster,
-      viewerCount: stream.viewers.size
+      viewerCount: stream.viewers.size,
+      title: stream.title || `${stream.broadcaster}'s Stream`,
+      description: stream.description || '',
+      category: stream.category || 'General'
     }));
     
     socket.emit('active-streams', activeStreams);
@@ -710,14 +713,17 @@ io.on('connection', (socket) => {
     const activeStreams = Array.from(streams.entries()).map(([streamId, stream]) => ({
       streamId,
       broadcaster: stream.broadcaster,
-      viewerCount: stream.viewers.size
+      viewerCount: stream.viewers.size,
+      title: stream.title || `${stream.broadcaster}'s Stream`,
+      description: stream.description || '',
+      category: stream.category || 'General'
     }));
     
     socket.emit('active-streams', activeStreams);
   });
   
   // Start a stream
-  socket.on('start-stream', ({ streamId }) => {
+  socket.on('start-stream', ({ streamId, metadata }) => {
     const user = users.get(socket.id);
     
     if (!user) {
@@ -751,11 +757,14 @@ io.on('connection', (socket) => {
     // Enforce limits before creating a new stream
     enforceLimits();
     
-    // Create new stream
+    // Create new stream with metadata
     streams.set(streamId, {
       broadcaster: user.username,
       viewers: new Set(),
-      createdAt: Date.now() // Add creation timestamp for stream age tracking
+      createdAt: Date.now(),
+      title: metadata?.title || `${user.username}'s Stream`,
+      description: metadata?.description || '',
+      category: metadata?.category || 'General'
     });
     
     // Update user info
@@ -788,10 +797,14 @@ io.on('connection', (socket) => {
     logState();
     
     // Broadcast to all users that a new stream is available
+    const stream = streams.get(streamId);
     socket.broadcast.emit('new-stream', {
       streamId,
       broadcaster: user.username,
-      viewerCount: 0
+      viewerCount: 0,
+      title: stream.title || `${user.username}'s Stream`,
+      description: stream.description || '',
+      category: stream.category || 'General'
     });
   });
   
@@ -949,7 +962,7 @@ io.on('connection', (socket) => {
     }
   });
   
-    socket.on('ice-candidate', ({ target, candidate }) => {
+  socket.on('ice-candidate', ({ target, candidate }) => {
     const targetSocket = io.sockets.sockets.get(target);
     if (targetSocket) {
       targetSocket.emit('ice-candidate', { from: socket.id, candidate });
@@ -1150,7 +1163,7 @@ io.on('connection', (socket) => {
     
     console.log(`User ${user.username} left co-streaming`);
   });
-
+  
   // Leave stream
   socket.on('leave-stream', () => {
     const user = users.get(socket.id);

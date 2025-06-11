@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import '../css/YouTubeVideos.css';
 import { useNavigate } from 'react-router-dom';
+import libraryIcon from '../assets/library.png';
 
 interface Video {
   _id: string;
@@ -14,6 +15,9 @@ interface Stream {
   streamId: string;
   broadcaster: string;
   viewerCount: number;
+  title?: string;
+  description?: string;
+  category?: string;
 }
 
 interface YouTubeVideosProps {
@@ -28,6 +32,10 @@ const YouTubeVideos = ({ activeStreams, showOnlyNewest = false, showNewestConten
   const [error, setError] = useState('');
   const navigate = useNavigate();
   const carouselRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+
+  useEffect(() => {
+    console.log('YouTubeVideos received activeStreams:', activeStreams);
+  }, [activeStreams]);
 
   useEffect(() => {
     const fetchVideos = async () => {
@@ -64,6 +72,19 @@ const YouTubeVideos = ({ activeStreams, showOnlyNewest = false, showNewestConten
     acc[video.category].push(video);
     return acc;
   }, {} as Record<string, Video[]>);
+
+  const getCategoryIcon = (category: string): string | React.ReactNode => {
+    const icons: { [key: string]: string | React.ReactNode } = {
+      'History of Islam': <img src={libraryIcon} alt="History of Islam" className="category-icon-img" />,
+      'Feminism & Red Pill': '⚖️',
+      'Christianity': <img src={libraryIcon} alt="Christianity" className="category-icon-img" />,
+      'Atheism': '🔬',
+      'Refutations': '🛡️',
+      'Miracles of the Quran': <img src={libraryIcon} alt="Miracles of the Quran" className="category-icon-img" />,
+      "Speaker's Corner": '🎤'
+    }
+    return icons[category] || '📺'
+  }
 
   const handleDragStart = (carouselId: string, e: React.MouseEvent) => {
     const carousel = carouselRefs.current[carouselId];
@@ -165,14 +186,22 @@ const YouTubeVideos = ({ activeStreams, showOnlyNewest = false, showNewestConten
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/>
             </svg>
           </div>
-          <div className="ytv-live-badge">LIVE</div>
         </div>
+        <div className="ytv-live-badge">LIVE</div>
         <div className="ytv-overlay">
-          <h3 className="ytv-card-title">{stream.broadcaster}'s Stream</h3>
+          <h3 className="ytv-card-title">{stream.title || `${stream.broadcaster}'s Stream`}</h3>
           <div className="ytv-channel-row">
-            <span className="ytv-channel">Live Stream</span>
+            <span className="ytv-channel">{stream.broadcaster}</span>
           </div>
           <div className="ytv-category-row">
+            <span>
+              {stream.category ? (
+                <>
+                  <span className="category-icon">{getCategoryIcon(stream.category)}</span>
+                  <span>{stream.category}</span>
+                </>
+              ) : 'Live Stream'}
+            </span>
             <span>{stream.viewerCount} {stream.viewerCount === 1 ? 'viewer' : 'viewers'}</span>
           </div>
         </div>
@@ -181,7 +210,16 @@ const YouTubeVideos = ({ activeStreams, showOnlyNewest = false, showNewestConten
   };
 
   const renderCarousel = (title: string, items: (Video | Stream)[], isMainCarousel = false) => {
-    if (items.length === 0 && (!isMainCarousel || activeStreams.length === 0)) return null;
+    console.log(`Rendering carousel "${title}":`, { 
+      itemsLength: items.length, 
+      activeStreamsLength: activeStreams.length, 
+      isMainCarousel 
+    });
+    
+    if (items.length === 0 && (!isMainCarousel || activeStreams.length === 0)) {
+      console.log(`Not rendering carousel "${title}" - no items`);
+      return null;
+    }
 
     const carouselId = title.replace(/\s+/g, '-').toLowerCase();
     
@@ -189,6 +227,8 @@ const YouTubeVideos = ({ activeStreams, showOnlyNewest = false, showNewestConten
     const allItems = isMainCarousel 
       ? [...activeStreams, ...items.filter(item => 'url' in item)] 
       : items.filter(item => 'url' in item);
+
+    console.log(`Carousel "${title}" allItems:`, allItems.length, 'streams:', activeStreams.length);
 
     // Duplicate items for infinite scroll effect
     const duplicatedItems = [...allItems, ...allItems, ...allItems];

@@ -4,6 +4,7 @@ import { Socket } from 'socket.io-client'
 import { v4 as uuidv4 } from 'uuid'
 import Chat from './Chat'
 import '../css/CreateStream.css'
+import libraryIcon from '../assets/library.png'
 
 interface CreateStreamProps {
   username: string
@@ -21,6 +22,12 @@ interface CoStreamer {
   stream?: MediaStream
 }
 
+interface StreamMetadata {
+  title: string
+  description: string
+  category: string
+}
+
 const CreateStream = ({ username, socket }: CreateStreamProps) => {
   const [streamId, setStreamId] = useState<string>('')
   const [isStreaming, setIsStreaming] = useState<boolean>(false)
@@ -34,6 +41,12 @@ const CreateStream = ({ username, socket }: CreateStreamProps) => {
   }>({ resolution: 'N/A', frameRate: 0 })
   const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([])
   const [coStreamers, setCoStreamers] = useState<CoStreamer[]>([])
+  const [streamMetadata, setStreamMetadata] = useState<StreamMetadata>({
+    title: '',
+    description: '',
+    category: ''
+  })
+  const [showMetadataForm, setShowMetadataForm] = useState<boolean>(true)
   
   const localVideoRef = useRef<HTMLVideoElement>(null)
   const localStreamRef = useRef<MediaStream | null>(null)
@@ -42,6 +55,35 @@ const CreateStream = ({ username, socket }: CreateStreamProps) => {
   const statsIntervalRef = useRef<NodeJS.Timeout | null>(null)
   
   const navigate = useNavigate()
+
+  const categories = [
+    'History of Islam', 'Feminism & Red Pill', 'Christianity', 'Atheism', 
+    'Refutations', 'Miracles of the Quran', "Speaker's Corner"
+  ]
+
+  const getCategoryIcon = (category: string): string | React.ReactNode => {
+    const icons: { [key: string]: string | React.ReactNode } = {
+      'History of Islam': <img src={libraryIcon} alt="History of Islam" className="category-icon-img" />,
+      'Feminism & Red Pill': '⚖️',
+      'Christianity': <img src={libraryIcon} alt="Christianity" className="category-icon-img" />,
+      'Atheism': '🔬',
+      'Refutations': '🛡️',
+      'Miracles of the Quran': <img src={libraryIcon} alt="Miracles of the Quran" className="category-icon-img" />,
+      "Speaker's Corner": '🎤'
+    }
+    return icons[category] || '📺'
+  }
+
+
+
+  const handleMetadataSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!streamMetadata.title.trim() || !streamMetadata.category) {
+      setError('Please fill in the title and select a category')
+      return
+    }
+    setShowMetadataForm(false)
+  }
 
   // Handle join request response
   const handleJoinRequestResponse = (requestUsername: string, accept: boolean) => {
@@ -179,8 +221,15 @@ const CreateStream = ({ username, socket }: CreateStreamProps) => {
       // Initialize the stream
       await initializeStream()
       
-      // Notify server
-      socket.emit('start-stream', { streamId: newStreamId })
+      // Notify server with metadata
+      socket.emit('start-stream', { 
+        streamId: newStreamId, 
+        metadata: {
+          title: streamMetadata.title,
+          description: streamMetadata.description,
+          category: streamMetadata.category
+        }
+      })
       
       // Set streaming state
       setIsStreaming(true)
@@ -198,8 +247,15 @@ const CreateStream = ({ username, socket }: CreateStreamProps) => {
       const testStreamId = `test-${uuidv4().substring(0, 5)}`;
       console.log(`Creating test stream with ID: ${testStreamId}`);
       
-      // Notify server of test stream creation
-      socket.emit('start-stream', { streamId: testStreamId });
+      // Notify server of test stream creation with metadata
+      socket.emit('start-stream', { 
+        streamId: testStreamId,
+        metadata: {
+          title: streamMetadata.title || 'Test Stream',
+          description: streamMetadata.description || 'This is a test stream',
+          category: streamMetadata.category || 'Technology'
+        }
+      });
       
       // Set stream ID but don't initialize media
       setStreamId(testStreamId);
@@ -654,55 +710,161 @@ const CreateStream = ({ username, socket }: CreateStreamProps) => {
 
   return (
     <div className="cs-container">
-      {/* Stream form before streaming starts */}
+      {/* Stream metadata form before streaming starts */}
       {!isStreaming ? (
         <div className="cs-setup-container">
-          {/* Header */}
-          <div className="cs-setup-header">
-            <h1>Create Stream</h1>
-            <p>Start streaming to your audience</p>
-          </div>
-          
-          <div className="cs-setup-content">
-            {error && (
-              <div className="cs-error">
-                {error}
+          {showMetadataForm ? (
+            <>
+              {/* Header */}
+              <div className="cs-setup-header">
+                <h1>Set Up Your Stream</h1>
+                <p>Provide details about your stream before going live</p>
               </div>
-            )}
-            <div className="cs-form-group">
-              <label htmlFor="streamId">Stream ID (optional)</label>
-              <input
-                type="text"
-                id="streamId"
-                value={streamId}
-                onChange={(e) => setStreamId(e.target.value)}
-                placeholder="Leave empty for random ID"
-              />
-              <p className="cs-form-help">
-                This will be used in the stream URL
-              </p>
-            </div>
-            <div className="cs-setup-actions">
-              <button
-                onClick={startStream}
-                className="cs-btn cs-btn-primary"
-              >
-                Start Streaming
-              </button>
-              <button
-                onClick={() => navigate('/')}
-                className="cs-btn cs-btn-secondary"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={createTestStream}
-                className="cs-btn cs-btn-warning"
-              >
-                Create Test Stream
-              </button>
-            </div>
-          </div>
+              
+              <form onSubmit={handleMetadataSubmit} className="cs-setup-content">
+                {error && (
+                  <div className="cs-error">
+                    {error}
+                  </div>
+                )}
+                
+                {/* Title */}
+                <div className="cs-form-group">
+                  <label htmlFor="title">Stream Title *</label>
+                  <input
+                    type="text"
+                    id="title"
+                    value={streamMetadata.title}
+                    onChange={(e) => setStreamMetadata(prev => ({ ...prev, title: e.target.value }))}
+                    placeholder="Enter an engaging title for your stream"
+                    required
+                  />
+                </div>
+
+                {/* Description */}
+                <div className="cs-form-group">
+                  <label htmlFor="description">Description</label>
+                  <textarea
+                    id="description"
+                    value={streamMetadata.description}
+                    onChange={(e) => setStreamMetadata(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="Describe what your stream is about..."
+                    rows={4}
+                    maxLength={500}
+                  />
+                  <p className="cs-form-help">
+                    {streamMetadata.description.length}/500 characters
+                  </p>
+                </div>
+
+                {/* Category */}
+                <div className="cs-form-group">
+                  <label htmlFor="category">Category *</label>
+                  <select
+                    id="category"
+                    value={streamMetadata.category}
+                    onChange={(e) => setStreamMetadata(prev => ({ ...prev, category: e.target.value }))}
+                    required
+                  >
+                    <option value="">Select a category</option>
+                    {categories.map((category) => (
+                      <option key={category} value={category}>
+                        {category}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Stream ID */}
+                <div className="cs-form-group">
+                  <label htmlFor="streamId">Stream ID (optional)</label>
+                  <input
+                    type="text"
+                    id="streamId"
+                    value={streamId}
+                    onChange={(e) => setStreamId(e.target.value)}
+                    placeholder="Leave empty for random ID"
+                  />
+                  <p className="cs-form-help">
+                    This will be used in the stream URL
+                  </p>
+                </div>
+
+                <div className="cs-setup-actions">
+                  <button
+                    type="submit"
+                    className="cs-btn cs-btn-primary"
+                  >
+                    Continue to Stream Setup
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/')}
+                    className="cs-btn cs-btn-secondary"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </>
+          ) : (
+            <>
+              {/* Stream Preview */}
+              <div className="cs-setup-header">
+                <h1>Ready to Stream</h1>
+                <p>Review your stream details and start broadcasting</p>
+              </div>
+              
+              <div className="cs-setup-content">
+                {error && (
+                  <div className="cs-error">
+                    {error}
+                  </div>
+                )}
+                
+                {/* Stream Preview */}
+                <div className="cs-stream-preview">
+                  <div className="cs-preview-thumbnail">
+                    <div className="cs-default-thumbnail">
+                      <span className="category-icon">{getCategoryIcon(streamMetadata.category)}</span>
+                    </div>
+                  </div>
+                  <div className="cs-preview-info">
+                    <h3>{streamMetadata.title}</h3>
+                    <p className="cs-preview-category">
+                      <span className="category-icon">{getCategoryIcon(streamMetadata.category)}</span>
+                      <span>{streamMetadata.category}</span>
+                    </p>
+                    {streamMetadata.description && (
+                      <p className="cs-preview-description">{streamMetadata.description}</p>
+                    )}
+                    <p className="cs-preview-id">Stream ID: {streamId || 'Auto-generated'}</p>
+                  </div>
+                </div>
+
+                <div className="cs-setup-actions">
+                  <button
+                    onClick={startStream}
+                    className="cs-btn cs-btn-primary"
+                  >
+                    🚀 Go Live
+                  </button>
+                  <button
+                    onClick={() => setShowMetadataForm(true)}
+                    className="cs-btn cs-btn-secondary"
+                  >
+                    ← Edit Details
+                  </button>
+                  <button
+                    onClick={createTestStream}
+                    className="cs-btn cs-btn-warning"
+                  >
+                    Create Test Stream
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       ) : (
         // Streaming interface after streaming starts - Match WatchStream layout
@@ -775,7 +937,18 @@ const CreateStream = ({ username, socket }: CreateStreamProps) => {
               <div className="cs-info-section">
                 {/* Stream Info */}
                 <div className="cs-stream-info">
-                  <h2 className="cs-stream-title">Live Stream</h2>
+                  <div className="cs-stream-header">
+                    <div className="cs-stream-details">
+                      <h2 className="cs-stream-title">{streamMetadata.title || 'Live Stream'}</h2>
+                      <div className="cs-stream-category">
+                        <span className="category-icon">{getCategoryIcon(streamMetadata.category)}</span>
+                        <span>{streamMetadata.category}</span>
+                      </div>
+                      {streamMetadata.description && (
+                        <p className="cs-stream-description">{streamMetadata.description}</p>
+                      )}
+                    </div>
+                  </div>
                   <div className="cs-stream-metadata">
                     <div className="cs-live-indicator">
                       <span className="cs-live-badge">LIVE</span>
@@ -861,7 +1034,6 @@ const CreateStream = ({ username, socket }: CreateStreamProps) => {
                 hasJoined={false}
                 hasRequestedJoin={false}
                 onRequestJoin={() => {}}
-                onCiteSources={() => {}}
                 cameraEnabled={videoEnabled}
                 micEnabled={audioEnabled}
                 onCameraToggle={toggleVideo}

@@ -90,9 +90,7 @@ const WatchStream = ({ username, socket }: WatchStreamProps) => {
     }
   }, [socket, streamId, username]);
 
-  const handleCiteSources = () => {
-    setShowSources(!showSources);
-  };
+
 
   const searchSources = async () => {
     if (!searchQuery.trim()) return;
@@ -231,7 +229,6 @@ const WatchStream = ({ username, socket }: WatchStreamProps) => {
               hasJoined={hasJoined}
               hasRequestedJoin={hasRequestedJoin}
               onRequestJoin={handleRequestJoin}
-              onCiteSources={handleCiteSources}
               cameraEnabled={cameraEnabled}
               micEnabled={micEnabled}
               onCameraToggle={toggleCamera}

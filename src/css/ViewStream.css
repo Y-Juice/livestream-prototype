@@ -108,6 +108,23 @@
   background: #ef4444;
 }
 
+/* Stream description text wrapping */
+.stream-description {
+  font-size: 0.875rem;
+  color: #d1d5db;
+  margin-bottom: 0.5rem;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  white-space: pre-wrap;
+  max-width: 100%;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  line-height: 1.4;
+}
+
 /* Mobile responsiveness */
 @media (max-width: 768px) {
   .video-layout.split-screen {
@@ -128,6 +145,29 @@
   .co-streamer-video-container {
     flex: 1;
     min-width: 150px;
+  }
+
+  .ws-container {
+    margin-left: 0;
+    max-width: 100vw;
+    padding: 1rem;
+    padding-top: 80px;
+  }
+
+  .ws-content-row {
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .ws-chat-sidebar {
+    width: 100%;
+    max-height: 350px;
+  }
+
+  .stream-description {
+    font-size: 0.8rem;
+    -webkit-line-clamp: 2;
+    line-height: 1.3;
   }
 }
 

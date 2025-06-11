@@ -23,25 +23,21 @@ const ReligiousCitationSearch = ({ onSelectCitation, onClose }: ReligiousCitatio
       setIsLoading(true);
       setError(null);
       
-      // Use our proxy API endpoint
-      const response = await fetch(`/api/search/quran?query=${encodeURIComponent(searchTerm)}`);
+      // Use our own API endpoint
+      const response = await fetch(`/api/quran?search=${encodeURIComponent(searchTerm)}&limit=5`);
       const data = await response.json();
       
-      if (data.code === 200 && data.data && data.data.matches) {
-        const formattedResults: SearchResult[] = data.data.matches.map((match: any) => ({
-          text: match.text,
-          reference: `Surah ${match.surah.englishName} (${match.surah.number}:${match.numberInSurah})`,
+      if (Array.isArray(data) && data.length > 0) {
+        const formattedResults: SearchResult[] = data.map((verse: any) => ({
+          text: verse.text || verse.translation || verse.english || '',
+          reference: `Surah ${verse.chapter || verse.surah_number || 'N/A'}, Ayah ${verse.verse || verse.verse_number || verse.ayah_number || 'N/A'}`,
           source: 'Quran'
-        })).slice(0, 5); // Limit to 5 results
+        }));
         
         setResults(formattedResults);
       } else {
         setResults([]);
-        if (data.data && data.data.matches && data.data.matches.length === 0) {
-          setError('No results found');
-        } else {
-          setError('Error searching the Quran');
-        }
+        setError('No results found in the Quran');
       }
     } catch (err) {
       console.error('Error searching Quran:', err);
@@ -57,21 +53,21 @@ const ReligiousCitationSearch = ({ onSelectCitation, onClose }: ReligiousCitatio
       setIsLoading(true);
       setError(null);
       
-      // Use our proxy API endpoint
-      const response = await fetch(`/api/search/hadith?query=${encodeURIComponent(searchTerm)}`);
+      // Use our own API endpoint
+      const response = await fetch(`/api/hadith?search=${encodeURIComponent(searchTerm)}&limit=5`);
       const data = await response.json();
       
-      if (data.code === 200 && data.data && data.data.matches) {
-        const formattedResults: SearchResult[] = data.data.matches.map((match: any) => ({
-          text: match.text,
-          reference: match.reference || "Reference not available",
+      if (Array.isArray(data) && data.length > 0) {
+        const formattedResults: SearchResult[] = data.map((hadith: any) => ({
+          text: hadith.text || hadith.english || hadith.translation || '',
+          reference: `${hadith.collection_name || hadith.collection || 'Hadith'} - ${hadith.hadith_number || hadith.number || 'N/A'}`,
           source: 'Hadith'
-        })).slice(0, 5); // Limit to 5 results
+        }));
         
         setResults(formattedResults);
       } else {
         setResults([]);
-        setError('Hadith search is not fully implemented in this version');
+        setError('No results found in Hadith collections');
       }
     } catch (err) {
       console.error('Error searching Hadith:', err);
@@ -87,21 +83,21 @@ const ReligiousCitationSearch = ({ onSelectCitation, onClose }: ReligiousCitatio
       setIsLoading(true);
       setError(null);
       
-      // Use our proxy API endpoint
-      const response = await fetch(`/api/search/bible?query=${encodeURIComponent(searchTerm)}`);
+      // Use our own API endpoint
+      const response = await fetch(`/api/bible?search=${encodeURIComponent(searchTerm)}&limit=5`);
       const data = await response.json();
       
-      if (data.code === 200 && data.data && data.data.matches) {
-        const formattedResults: SearchResult[] = data.data.matches.map((match: any) => ({
-          text: match.text,
-          reference: match.reference || "Reference not available",
+      if (Array.isArray(data) && data.length > 0) {
+        const formattedResults: SearchResult[] = data.map((verse: any) => ({
+          text: verse.text || verse.verse_text || '',
+          reference: `${verse.book || 'Bible'} ${verse.chapter || 'N/A'}:${verse.verse || verse.verse_number || 'N/A'}`,
           source: 'Bible'
-        })).slice(0, 5); // Limit to 5 results
+        }));
         
         setResults(formattedResults);
       } else {
         setResults([]);
-        setError('Bible search is not fully implemented in this version');
+        setError('No results found in the Bible');
       }
     } catch (err) {
       console.error('Error searching Bible:', err);
@@ -131,76 +127,110 @@ const ReligiousCitationSearch = ({ onSelectCitation, onClose }: ReligiousCitatio
     }
   };
 
+  // Handle Enter key press
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSearch();
+    }
+  };
+
   const handleSelectCitation = (citation: SearchResult) => {
     onSelectCitation(citation);
     onClose();
   };
 
   return (
-    <div className="absolute bottom-16 left-0 right-0 bg-white border border-gray-300 rounded-lg shadow-lg p-4 z-10">
-      <div className="flex justify-between items-center mb-3">
-        <h3 className="text-lg font-medium">Search Religious Citations</h3>
+    <div className="absolute bottom-16 left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-xl p-6 z-10 max-w-2xl mx-auto">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-xl font-semibold text-gray-800">Search Religious Citations</h3>
         <button 
           onClick={onClose}
-          className="text-gray-500 hover:text-gray-700"
+          className="text-gray-400 hover:text-gray-600 text-2xl font-light transition-colors"
         >
-          ✕
+          ×
         </button>
       </div>
       
-      <div className="mb-3">
-        <div className="flex gap-2 mb-2">
+      <div className="mb-4">
+        <div className="flex gap-3 mb-3">
           <select 
             value={searchSource}
             onChange={(e) => setSearchSource(e.target.value as 'quran' | 'bible' | 'hadith')}
-            className="px-3 py-2 border border-gray-300 rounded-lg"
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-700"
           >
-            <option value="quran">Quran</option>
-            <option value="bible">Bible</option>
-            <option value="hadith">Hadith</option>
+            <option value="quran">📖 Quran</option>
+            <option value="bible">✝️ Bible</option>
+            <option value="hadith">📚 Hadith</option>
           </select>
           
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            onKeyPress={handleKeyPress}
             placeholder="Enter search term..."
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
+            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
           
           <button
             onClick={handleSearch}
             disabled={isLoading}
-            className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 disabled:bg-blue-300"
+            className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-2 rounded-lg hover:from-blue-700 hover:to-blue-800 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transition-all duration-200 font-medium shadow-md"
           >
-            {isLoading ? 'Searching...' : 'Search'}
+            {isLoading ? (
+              <div className="flex items-center">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Searching...
+              </div>
+            ) : (
+              'Search'
+            )}
           </button>
         </div>
       </div>
       
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-3 py-2 mb-3 rounded">
-          {error}
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 mb-4 rounded-lg">
+          <div className="flex items-center">
+            <span className="text-red-500 mr-2">⚠️</span>
+            {error}
+          </div>
         </div>
       )}
       
-      <div className="max-h-60 overflow-y-auto">
+      <div className="max-h-80 overflow-y-auto">
         {results.length > 0 ? (
-          <div className="space-y-2">
+          <div className="space-y-3">
+            <h4 className="text-sm font-medium text-gray-600 mb-2">Search Results ({results.length})</h4>
             {results.map((result, index) => (
               <div 
                 key={index} 
-                className="border border-gray-200 rounded-lg p-3 hover:bg-gray-50 cursor-pointer"
+                className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 hover:border-gray-300 cursor-pointer transition-all duration-200 group"
                 onClick={() => handleSelectCitation(result)}
               >
-                <div className="text-sm font-semibold text-blue-600">{result.reference}</div>
-                <div className="text-sm mt-1">{result.text}</div>
-                <div className="text-xs text-gray-500 mt-1">Source: {result.source}</div>
+                <div className="flex justify-between items-start mb-2">
+                  <div className="text-sm font-semibold text-blue-600 group-hover:text-blue-700">
+                    {result.reference}
+                  </div>
+                  <div className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                    {result.source}
+                  </div>
+                </div>
+                <div className="text-sm text-gray-700 leading-relaxed line-clamp-3">
+                  {result.text}
+                </div>
+                <div className="text-xs text-blue-500 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  Click to add to message
+                </div>
               </div>
             ))}
           </div>
         ) : !isLoading && !error ? (
-          <p className="text-gray-500 text-center">Search for citations to see results</p>
+          <div className="text-center py-8">
+            <div className="text-gray-400 mb-2">📖</div>
+            <p className="text-gray-500">Search for citations to see results</p>
+          </div>
         ) : null}
       </div>
     </div>

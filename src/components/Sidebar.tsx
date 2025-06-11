@@ -1,5 +1,10 @@
 import { Link, useLocation } from 'react-router-dom';
 import '../css/Sidebar.css';
+import dalilTalkLogo from '../assets/dalilTalkLogo.png';
+import homeIcon from '../assets/home.png';
+import browseIcon from '../assets/browse.png';
+import followingIcon from '../assets/following.png';
+import libraryIcon from '../assets/library.png';
 
 interface SidebarProps {
   username: string;
@@ -21,10 +26,9 @@ const Sidebar = ({ username }: SidebarProps) => {
     <div className="sidebar">
       {/* Header */}
       <div className="sidebar-header">
-        <div className="sidebar-logo">
-          <span className="logo-icon">🎯</span>
-          <h2>Dalil Talk</h2>
-        </div>
+        <Link to="/" className="sidebar-logo">
+          <img src={dalilTalkLogo} alt="Dalil Talk" className="logo-image" />
+        </Link>
       </div>
 
       {/* Navigation */}
@@ -33,7 +37,7 @@ const Sidebar = ({ username }: SidebarProps) => {
           to="/" 
           className={`nav-item ${isActive('/') ? 'active' : ''}`}
         >
-          <span className="nav-icon">🏠</span>
+          <img src={homeIcon} alt="Home" className="nav-icon-img" />
           <span>Home</span>
         </Link>
 
@@ -41,40 +45,19 @@ const Sidebar = ({ username }: SidebarProps) => {
           to="/browse" 
           className={`nav-item ${isActive('/browse') ? 'active' : ''}`}
         >
-          <span className="nav-icon">🔍</span>
+          <img src={browseIcon} alt="Browse" className="nav-icon-img" />
           <span>Browse</span>
         </Link>
 
-        <Link 
-          to="/following" 
-          className={`nav-item ${isActive('/following') ? 'active' : ''}`}
-        >
-          <span className="nav-icon">❤️</span>
-          <span>Following</span>
-        </Link>
 
         <Link 
           to="/library" 
           className={`nav-item ${isActive('/library') ? 'active' : ''}`}
         >
-          <span className="nav-icon">📚</span>
+          <img src={libraryIcon} alt="Library" className="nav-icon-img" />
           <span>Library</span>
         </Link>
       </nav>
-
-      {/* Recommended Channels */}
-      <div className="recommended-section">
-        <h3 className="section-title">RECOMMENDED CHANNELS</h3>
-        <div className="recommended-channels">
-          {recommendedChannels.map((channel, index) => (
-            <div key={index} className="channel-item">
-              <span className="channel-avatar">{channel.avatar}</span>
-              <span className="channel-name">{channel.name}</span>
-              <span className="channel-status">●</span>
-            </div>
-          ))}
-        </div>
-      </div>
 
       {/* User Profile */}
       <div className="sidebar-footer">
