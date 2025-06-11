@@ -3,7 +3,6 @@ import '../css/Sidebar.css';
 import dalilTalkLogo from '../assets/dalilTalkLogo.png';
 import homeIcon from '../assets/home.png';
 import browseIcon from '../assets/browse.png';
-import followingIcon from '../assets/following.png';
 import libraryIcon from '../assets/library.png';
 
 interface SidebarProps {
@@ -16,11 +15,6 @@ const Sidebar = ({ username }: SidebarProps) => {
   const isActive = (path: string) => {
     return location.pathname === path;
   };
-
-  const recommendedChannels = [
-    { name: 'FalyedFit', avatar: '👤' },
-    { name: 'The Deen Show', avatar: '👤' }
-  ];
 
   return (
     <div className="sidebar">

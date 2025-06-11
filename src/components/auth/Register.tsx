@@ -10,7 +10,6 @@ const Register: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [registerSuccess, setRegisterSuccess] = useState(false);
   const navigate = useNavigate();
-  const location = useLocation();
 
   // Use effect to navigate after state is updated
   useEffect(() => {

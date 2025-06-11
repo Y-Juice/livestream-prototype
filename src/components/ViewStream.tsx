@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Socket } from 'socket.io-client'
-import Chat from './Chat'
 import '../css/ViewStream.css'
 import libraryIcon from '../assets/library.png'
 
@@ -47,7 +46,6 @@ const ViewStream = ({ username, socket, hasJoined, cameraEnabled, micEnabled, on
   const playAttemptTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const videoContainerRef = useRef<HTMLDivElement>(null)
   const coStreamerPeerConnections = useRef<Map<string, RTCPeerConnection>>(new Map())
-  const coStreamerVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map())
   
   const navigate = useNavigate()
 
@@ -339,7 +337,7 @@ const ViewStream = ({ username, socket, hasJoined, cameraEnabled, micEnabled, on
       })
     }
 
-    const handleCoStreamerAnswer = async ({ from, answer }: { from: string, answer: RTCSessionDescriptionInit }) => {
+    const handleCoStreamerAnswer = async ({ answer }: { from: string, answer: RTCSessionDescriptionInit }) => {
       const pc = localPeerConnectionRef.current
       if (pc) {
         await pc.setRemoteDescription(answer)
@@ -499,10 +497,7 @@ const ViewStream = ({ username, socket, hasJoined, cameraEnabled, micEnabled, on
     // Implementation remains the same as before
   }
 
-  const handleRestartConnection = () => {
-    console.log('Restarting connection')
-    // Implementation remains the same as before
-  }
+
 
   const handleLeaveStream = () => {
     if (streamId) {

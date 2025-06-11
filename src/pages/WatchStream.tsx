@@ -27,7 +27,7 @@ interface JoinRequest {
 
 const WatchStream = ({ username, socket }: WatchStreamProps) => {
   const { streamId } = useParams<{ streamId: string }>();
-  const [showSources, setShowSources] = useState(false);
+  const [showSources] = useState(false);
   const [sourceResults, setSourceResults] = useState<{
     quran: SourceContent[];
     bible: SourceContent[];
