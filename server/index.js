@@ -19,11 +19,19 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const server = http.createServer(app);
+
+// CORS configuration for production and development
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'production' 
+    ? [process.env.FRONTEND_URL, 'https://your-vercel-app.vercel.app']
+    : ['http://localhost:5173', 'http://localhost:3000'],
+  methods: ['GET', 'POST', 'OPTIONS'],
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+
 const io = new Server(server, {
-  cors: {
-    origin: '*',
-    methods: ['GET', 'POST']
-  }
+  cors: corsOptions
 });
 
 // Connect to MongoDB
@@ -42,12 +50,7 @@ const MAX_STREAMS = 100;
 const MAX_USERS = 200;
 const MAX_MESSAGES_PER_STREAM = 50; // Reduced from 100 to 50 for memory optimization
 
-app.use(cors({
-  origin: '*', // In development, allow all origins
-  methods: ['GET', 'POST', 'OPTIONS'],
-  credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+app.use(cors(corsOptions));
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../dist')));
@@ -1326,6 +1329,8 @@ app.get('*', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3001;
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`MongoDB: ${process.env.MONGODB_URI ? 'Connected' : 'Using default localhost'}`);
 }); 
