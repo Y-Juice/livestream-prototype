@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { apiCall } from '../../config/api';
 import '../../css/Login.css';
 
 const Login: React.FC = () => {
@@ -25,13 +26,12 @@ const Login: React.FC = () => {
     try {
       console.log('Attempting to login with:', { email });
       
-      const response = await fetch('/api/login', {
+      const response = await apiCall('/api/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ email, password }),
-        credentials: 'include',
       });
 
       // Log the response status

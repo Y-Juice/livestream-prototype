@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { apiCall } from '../config/api';
 import '../css/WatchVideo.css';
 
 interface Video {
@@ -20,7 +21,7 @@ const WatchVideo = () => {
     const fetchVideo = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`/api/videos/${id}`);
+        const response = await apiCall(`/api/videos/${id}`);
         if (!response.ok) throw new Error('Failed to fetch video');
         const data = await response.json();
         setVideo(data);

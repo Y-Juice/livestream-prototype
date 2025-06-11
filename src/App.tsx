@@ -34,7 +34,10 @@ import Hadith from './pages/Hadith'
 
 // Create socket connection
 const createSocket = (): Socket => {
-  return io(import.meta.env.VITE_SERVER_URL || 'http://localhost:3001', {
+  const serverUrl = import.meta.env.VITE_SERVER_URL || 
+                   (import.meta.env.PROD ? 'https://server-production-d7dd.up.railway.app' : 'http://localhost:3001')
+  
+  return io(serverUrl, {
     reconnectionAttempts: 5,
     reconnectionDelay: 1000,
     timeout: 10000

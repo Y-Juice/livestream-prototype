@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import ViewStream from '../components/ViewStream';
 import Chat from '../components/Chat';
 import { Socket } from 'socket.io-client';
+import { apiCall } from '../config/api';
 import '../css/WatchStream.css';
 
 interface WatchStreamProps {
@@ -98,9 +99,9 @@ const WatchStream = ({ username, socket }: WatchStreamProps) => {
     try {
       // Search all three sources
       const [quranRes, bibleRes, hadithRes] = await Promise.all([
-        fetch(`/api/quran?search=${encodeURIComponent(searchQuery)}`),
-        fetch(`/api/bible?search=${encodeURIComponent(searchQuery)}`),
-        fetch(`/api/hadith?search=${encodeURIComponent(searchQuery)}`)
+        apiCall(`/api/quran?search=${encodeURIComponent(searchQuery)}`),
+        apiCall(`/api/bible?search=${encodeURIComponent(searchQuery)}`),
+        apiCall(`/api/hadith?search=${encodeURIComponent(searchQuery)}`)
       ]);
 
       const [quranData, bibleData, hadithData] = await Promise.all([
