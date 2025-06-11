@@ -12,10 +12,5 @@
         }
       ]
     }
-  ],
-  "functions": {
-    "src/api/**.ts": {
-      "runtime": "@vercel/node"
-    }
-  }
+  ]
 } 
