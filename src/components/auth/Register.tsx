@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import '../../css/Login.css';
 
 const Register: React.FC = () => {
@@ -8,7 +8,7 @@ const Register: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [registerSuccess, setRegisterSuccess] = useState(false);
+  const [registerSuccess] = useState(false);
   const navigate = useNavigate();
 
   // Use effect to navigate after state is updated
