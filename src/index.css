@@ -2,43 +2,64 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Line clamp utilities */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 /* Custom styles can be added below */
 
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
-  color-scheme: light dark;
+  color-scheme: dark;
   color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  background-color: #1a1a1a;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
+* {
+  box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
+  padding: 0;
   min-height: 100vh;
+  background-color: #1a1a1a;
+  color: #fff;
+  overflow-x: hidden;
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+#root {
+  min-height: 100vh;
+  background-color: #1a1a1a;
+}
+
+a {
+  font-weight: 500;
+  color: #10b981;
+  text-decoration: inherit;
+}
+a:hover {
+  color: #059669;
 }
 
 button {
@@ -48,27 +69,182 @@ button {
   font-size: 1em;
   font-weight: 500;
   font-family: inherit;
-  background-color: #1a1a1a;
+  background-color: #2d2d2d;
+  color: #fff;
   cursor: pointer;
   transition: border-color 0.25s;
 }
 button:hover {
-  border-color: #646cff;
+  border-color: #10b981;
 }
 button:focus,
 button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
+input, select, textarea {
+  background-color: #2d2d2d;
+  color: #fff;
+  border: 1px solid #404040;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+input::placeholder {
+  color: #888;
+}
+
+/* Global dark theme overrides */
+.bg-white {
+  background-color: #2d2d2d !important;
+}
+
+.text-gray-600 {
+  color: #888 !important;
+}
+
+.text-gray-900 {
+  color: #fff !important;
+}
+
+.shadow-md {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Global responsive styles */
+html {
+  font-size: 16px;
+}
+
+@media (max-width: 1024px) {
+  html {
+    font-size: 15px;
   }
-  a:hover {
-    color: #747bff;
+}
+
+@media (max-width: 768px) {
+  html {
+    font-size: 14px;
   }
-  button {
-    background-color: #f9f9f9;
+  
+  /* Ensure touch targets are properly sized */
+  button, .btn, a {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+@media (max-width: 480px) {
+  html {
+    font-size: 13px;
+  }
+}
+
+/* Responsive images and media */
+img, video {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Responsive containers */
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 0 0.5rem;
+  }
+}
+
+/* Responsive text sizing */
+@media (max-width: 768px) {
+  h1 { font-size: 1.75rem; }
+  h2 { font-size: 1.5rem; }
+  h3 { font-size: 1.25rem; }
+  h4 { font-size: 1.1rem; }
+  h5 { font-size: 1rem; }
+  h6 { font-size: 0.9rem; }
+}
+
+@media (max-width: 480px) {
+  h1 { font-size: 1.5rem; }
+  h2 { font-size: 1.3rem; }
+  h3 { font-size: 1.1rem; }
+  h4 { font-size: 1rem; }
+  h5 { font-size: 0.9rem; }
+  h6 { font-size: 0.8rem; }
+}
+
+/* Responsive spacing utilities */
+@media (max-width: 768px) {
+  .space-y-4 > * + * { margin-top: 0.75rem; }
+  .space-y-6 > * + * { margin-top: 1rem; }
+  .space-y-8 > * + * { margin-top: 1.25rem; }
+  
+  .p-4 { padding: 0.75rem; }
+  .p-6 { padding: 1rem; }
+  .p-8 { padding: 1.25rem; }
+  
+  .m-4 { margin: 0.75rem; }
+  .m-6 { margin: 1rem; }
+  .m-8 { margin: 1.25rem; }
+}
+
+/* App layout responsive adjustments */
+@media (max-width: 768px) {
+  .App {
+    flex-direction: column;
+  }
+  
+  /* Hide sidebar on mobile, show hamburger menu instead */
+  .sidebar-toggle {
+    display: block;
+    position: fixed;
+    top: 15px;
+    left: 15px;
+    z-index: 1001;
+    background: #2d2d2d;
+    color: white;
+    border: none;
+    padding: 10px;
+    border-radius: 5px;
+    font-size: 18px;
+    cursor: pointer;
+  }
+}
+
+@media (min-width: 769px) {
+  .sidebar-toggle {
+    display: none;
+  }
+}
+
+/* Prevent horizontal scroll */
+body {
+  overflow-x: hidden;
+}
+
+/* Responsive viewport handling */
+@viewport {
+  width: device-width;
+  zoom: 1.0;
+}
+
+/* Better responsive images */
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Responsive forms */
+@media (max-width: 768px) {
+  input, textarea, select {
+    font-size: 16px; /* Prevents zoom on iOS */
   }
 }

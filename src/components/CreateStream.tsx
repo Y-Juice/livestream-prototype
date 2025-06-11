@@ -3,10 +3,29 @@ import { useNavigate } from 'react-router-dom'
 import { Socket } from 'socket.io-client'
 import { v4 as uuidv4 } from 'uuid'
 import Chat from './Chat'
+import '../css/CreateStream.css'
+import libraryIcon from '../assets/library.png'
 
 interface CreateStreamProps {
   username: string
   socket: Socket
+}
+
+interface JoinRequest {
+  username: string
+  timestamp: number
+}
+
+interface CoStreamer {
+  username: string
+  socketId: string
+  stream?: MediaStream
+}
+
+interface StreamMetadata {
+  title: string
+  description: string
+  category: string
 }
 
 const CreateStream = ({ username, socket }: CreateStreamProps) => {
@@ -20,13 +39,81 @@ const CreateStream = ({ username, socket }: CreateStreamProps) => {
     resolution: string
     frameRate: number
   }>({ resolution: 'N/A', frameRate: 0 })
+  const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([])
+  const [coStreamers, setCoStreamers] = useState<CoStreamer[]>([])
+  const [streamMetadata, setStreamMetadata] = useState<StreamMetadata>({
+    title: '',
+    description: '',
+    category: ''
+  })
+  const [showMetadataForm, setShowMetadataForm] = useState<boolean>(true)
   
   const localVideoRef = useRef<HTMLVideoElement>(null)
   const localStreamRef = useRef<MediaStream | null>(null)
   const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map())
+  const coStreamerPeerConnections = useRef<Map<string, RTCPeerConnection>>(new Map())
   const statsIntervalRef = useRef<NodeJS.Timeout | null>(null)
   
   const navigate = useNavigate()
+
+  const categories = [
+    'History of Islam', 'Feminism & Red Pill', 'Christianity', 'Atheism', 
+    'Refutations', 'Miracles of the Quran', "Speaker's Corner"
+  ]
+
+  const getCategoryIcon = (category: string): string | React.ReactNode => {
+    const icons: { [key: string]: string | React.ReactNode } = {
+      'History of Islam': <img src={libraryIcon} alt="History of Islam" className="category-icon-img" />,
+      'Feminism & Red Pill': '⚖️',
+      'Christianity': <img src={libraryIcon} alt="Christianity" className="category-icon-img" />,
+      'Atheism': '🔬',
+      'Refutations': '🛡️',
+      'Miracles of the Quran': <img src={libraryIcon} alt="Miracles of the Quran" className="category-icon-img" />,
+      "Speaker's Corner": '🎤'
+    }
+    return icons[category] || '📺'
+  }
+
+
+
+  const handleMetadataSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!streamMetadata.title.trim() || !streamMetadata.category) {
+      setError('Please fill in the title and select a category')
+      return
+    }
+    setShowMetadataForm(false)
+  }
+
+  // Handle join request response
+  const handleJoinRequestResponse = (requestUsername: string, accept: boolean) => {
+    if (socket && streamId) {
+      socket.emit('respond-join-request', { 
+        streamId, 
+        requestUsername, 
+        accept 
+      })
+      
+      setJoinRequests(prev => 
+        prev.filter(req => req.username !== requestUsername)
+      )
+    }
+  }
+
+  // Handle kicking a co-streamer
+  const handleKickCoStreamer = (coStreamerUsername: string) => {
+    if (socket && streamId) {
+      socket.emit('kick-co-streamer', { 
+        streamId, 
+        coStreamerUsername 
+      })
+      
+      // Remove from local state
+      setCoStreamers(prev => 
+        prev.filter(cs => cs.username !== coStreamerUsername)
+      )
+    }
+  }
 
   // Initialize stream
   const initializeStream = async () => {
@@ -54,25 +141,32 @@ const CreateStream = ({ username, socket }: CreateStreamProps) => {
       
       // Set the stream as the video source
       if (localVideoRef.current) {
+        console.log('Setting up local video element')
+        
+        // Ensure video element is ready
+        const videoElement = localVideoRef.current
+        
         // First clear the video source to ensure refresh
-        localVideoRef.current.srcObject = null
+        videoElement.srcObject = null
         
-        // Short delay to ensure DOM updates
-        await new Promise(resolve => setTimeout(resolve, 100))
+        // Wait for the video element to be ready
+        await new Promise(resolve => setTimeout(resolve, 200))
         
-        // Set the stream and play
-        localVideoRef.current.srcObject = stream
+        // Set the stream
+        videoElement.srcObject = stream
+        videoElement.muted = true  // Ensure muted for autoplay
         
-        // Ensure video is playing with multiple attempts
-        const attemptPlay = async (retries = 3) => {
+        // Force video to load and play
+        const attemptPlay = async (retries = 5) => {
           try {
-            await localVideoRef.current?.play()
+            await videoElement.load() // Force reload
+            await videoElement.play()
             console.log('Local video playing successfully')
           } catch (err) {
             console.error('Error playing local video:', err)
             if (retries > 0) {
               console.log(`Retrying playback, ${retries} attempts left`)
-              setTimeout(() => attemptPlay(retries - 1), 500)
+              setTimeout(() => attemptPlay(retries - 1), 800)
             }
           }
         }
@@ -127,8 +221,15 @@ const CreateStream = ({ username, socket }: CreateStreamProps) => {
       // Initialize the stream
       await initializeStream()
       
-      // Notify server
-      socket.emit('start-stream', { streamId: newStreamId })
+      // Notify server with metadata
+      socket.emit('start-stream', { 
+        streamId: newStreamId, 
+        metadata: {
+          title: streamMetadata.title,
+          description: streamMetadata.description,
+          category: streamMetadata.category
+        }
+      })
       
       // Set streaming state
       setIsStreaming(true)
@@ -146,8 +247,15 @@ const CreateStream = ({ username, socket }: CreateStreamProps) => {
       const testStreamId = `test-${uuidv4().substring(0, 5)}`;
       console.log(`Creating test stream with ID: ${testStreamId}`);
       
-      // Notify server of test stream creation
-      socket.emit('start-stream', { streamId: testStreamId });
+      // Notify server of test stream creation with metadata
+      socket.emit('start-stream', { 
+        streamId: testStreamId,
+        metadata: {
+          title: streamMetadata.title || 'Test Stream',
+          description: streamMetadata.description || 'This is a test stream',
+          category: streamMetadata.category || 'Technology'
+        }
+      });
       
       // Set stream ID but don't initialize media
       setStreamId(testStreamId);
@@ -325,19 +433,21 @@ const CreateStream = ({ username, socket }: CreateStreamProps) => {
         if (peerConnectionsRef.current.size >= MAX_PEER_CONNECTIONS) {
           console.warn(`Maximum peer connections (${MAX_PEER_CONNECTIONS}) reached. Closing oldest connection.`)
           // Get the oldest connection (first key in Map)
-          const oldestTarget = peerConnectionsRef.current.keys().next().value
-          const oldConnection = peerConnectionsRef.current.get(oldestTarget)
-          if (oldConnection) {
-            try {
-              oldConnection.close()
-            } catch (err) {
-              console.warn(`Error closing oldest peer connection:`, err)
+          const oldestTarget = peerConnectionsRef.current.keys().next().value as string | undefined
+          if (oldestTarget) {
+            const oldConnection = peerConnectionsRef.current.get(oldestTarget)
+            if (oldConnection) {
+              try {
+                oldConnection.close()
+              } catch (err) {
+                console.warn(`Error closing oldest peer connection:`, err)
+              }
+              peerConnectionsRef.current.delete(oldestTarget)
             }
-            peerConnectionsRef.current.delete(oldestTarget)
           }
         }
         
-        // Create a new RTCPeerConnection
+        // Create a new RTCPeerConnection  
         const peerConnection = new RTCPeerConnection({
           iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
@@ -353,7 +463,7 @@ const CreateStream = ({ username, socket }: CreateStreamProps) => {
           
           localStreamRef.current.getTracks().forEach(track => {
             if (localStreamRef.current) {
-              const sender = peerConnection.addTrack(track, localStreamRef.current)
+              peerConnection.addTrack(track, localStreamRef.current)
               console.log(`Added ${track.kind} track to peer connection`)
               
               // Ensure track is enabled based on current state
@@ -446,10 +556,14 @@ const CreateStream = ({ username, socket }: CreateStreamProps) => {
     const handleAnswer = ({ from, answer }: { from: string, answer: RTCSessionDescriptionInit }) => {
       const peerConnection = peerConnectionsRef.current.get(from)
       
-      if (peerConnection && peerConnection.signalingState !== 'closed') {
+      if (peerConnection && 
+          peerConnection.signalingState !== 'closed' && 
+          peerConnection.signalingState === 'have-local-offer') {
         peerConnection.setRemoteDescription(new RTCSessionDescription(answer))
           .then(() => console.log(`Set remote description for ${from}`))
           .catch(err => console.error('Error setting remote description:', err))
+      } else {
+        console.log(`Cannot set answer from ${from}, connection state: ${peerConnection?.signalingState || 'null'}`)
       }
     }
     
@@ -457,9 +571,13 @@ const CreateStream = ({ username, socket }: CreateStreamProps) => {
     const handleIceCandidate = ({ from, candidate }: { from: string, candidate: RTCIceCandidateInit }) => {
       const peerConnection = peerConnectionsRef.current.get(from)
       
-      if (peerConnection && peerConnection.signalingState !== 'closed') {
+      if (peerConnection && 
+          peerConnection.signalingState !== 'closed' && 
+          peerConnection.remoteDescription) {
         peerConnection.addIceCandidate(new RTCIceCandidate(candidate))
           .catch(err => console.error('Error adding ICE candidate:', err))
+      } else {
+        console.log(`Cannot add ICE candidate from ${from}, connection state: ${peerConnection?.signalingState || 'null'}`)
       }
     }
     
@@ -467,6 +585,75 @@ const CreateStream = ({ username, socket }: CreateStreamProps) => {
     const handleError = ({ message }: { message: string }) => {
       setError(message)
     }
+
+    // Handle join requests from viewers
+    const handleJoinRequest = (request: JoinRequest) => {
+      console.log('Received join request from:', request.username)
+      setJoinRequests(prev => [...prev, request])
+    }
+
+    // Handle co-streamer joined
+    const handleCoStreamerJoined = ({ username: coStreamerName, socketId }: { username: string, socketId: string }) => {
+      console.log(`Co-streamer joined: ${coStreamerName}`)
+      setCoStreamers(prev => [
+        ...prev.filter(cs => cs.username !== coStreamerName),
+        { username: coStreamerName, socketId }
+      ])
+    }
+
+    // Handle co-streamer offer
+    const handleCoStreamerOffer = async ({ from, offer }: { from: string, offer: RTCSessionDescriptionInit }) => {
+      console.log(`Received co-streamer offer from: ${from}`)
+      
+      // Create peer connection for co-streamer
+      const pc = new RTCPeerConnection({
+        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+      })
+      
+      coStreamerPeerConnections.current.set(from, pc)
+      
+      pc.ontrack = (event) => {
+        console.log('Received co-streamer track:', event.track.kind)
+        const stream = event.streams[0]
+        
+        // Update co-streamer with stream
+        setCoStreamers(prev => 
+          prev.map(cs => 
+            cs.socketId === from 
+              ? { ...cs, stream }
+              : cs
+          )
+        )
+      }
+      
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          socket.emit('co-streamer-ice-candidate', {
+            target: from,
+            candidate: event.candidate
+          })
+        }
+      }
+      
+      await pc.setRemoteDescription(offer)
+      const answer = await pc.createAnswer()
+      await pc.setLocalDescription(answer)
+      
+      socket.emit('co-streamer-answer', {
+        target: from,
+        answer
+      })
+    }
+
+    // Handle co-streamer ice candidate
+    const handleCoStreamerIceCandidate = ({ from, candidate }: { from: string, candidate: RTCIceCandidateInit }) => {
+      const pc = coStreamerPeerConnections.current.get(from)
+      if (pc) {
+        pc.addIceCandidate(new RTCIceCandidate(candidate))
+      }
+    }
+
+
     
     // Register event listeners
     socket.on('viewer-joined', handleViewerJoined)
@@ -474,6 +661,10 @@ const CreateStream = ({ username, socket }: CreateStreamProps) => {
     socket.on('request-offer', handleRequestOffer)
     socket.on('answer', handleAnswer)
     socket.on('ice-candidate', handleIceCandidate)
+    socket.on('join-request', handleJoinRequest)
+    socket.on('co-streamer-joined', handleCoStreamerJoined)
+    socket.on('co-streamer-offer', handleCoStreamerOffer)
+    socket.on('co-streamer-ice-candidate', handleCoStreamerIceCandidate)
     socket.on('error', handleError)
     
     // Cleanup on unmount
@@ -483,7 +674,15 @@ const CreateStream = ({ username, socket }: CreateStreamProps) => {
       socket.off('request-offer', handleRequestOffer)
       socket.off('answer', handleAnswer)
       socket.off('ice-candidate', handleIceCandidate)
+      socket.off('join-request', handleJoinRequest)
+      socket.off('co-streamer-joined', handleCoStreamerJoined)
+      socket.off('co-streamer-offer', handleCoStreamerOffer)
+      socket.off('co-streamer-ice-candidate', handleCoStreamerIceCandidate)
       socket.off('error', handleError)
+      
+      // Clean up co-streamer peer connections
+      coStreamerPeerConnections.current.forEach(pc => pc.close())
+      coStreamerPeerConnections.current.clear()
       
       // Stop streaming if active
       if (isStreaming) {
@@ -510,99 +709,183 @@ const CreateStream = ({ username, socket }: CreateStreamProps) => {
   }, [socket, isStreaming, streamId])
 
   return (
-    <div className="max-w-4xl mx-auto">
-      {/* Stream form before streaming starts */}
+    <div className="cs-container">
+      {/* Stream metadata form before streaming starts */}
       {!isStreaming ? (
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          {/* Header */}
-          <div className="p-6 bg-gray-50 border-b">
-            <h1 className="text-2xl font-bold">Create Stream</h1>
-            <p className="text-gray-600 mt-1">
-              Start streaming to your audience
-            </p>
-          </div>
-          
-          <div className="p-6">
-            {error && (
-              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-                {error}
-              </div>
-            )}
-            <div className="mb-4">
-              <label htmlFor="streamId" className="block text-gray-700 mb-2">
-                Stream ID (optional)
-              </label>
-              <input
-                type="text"
-                id="streamId"
-                value={streamId}
-                onChange={(e) => setStreamId(e.target.value)}
-                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="Leave empty for random ID"
-              />
-              <p className="text-gray-500 text-sm mt-1">
-                This will be used in the stream URL
-              </p>
-            </div>
-            <div className="flex space-x-4">
-              <button
-                onClick={startStream}
-                className="bg-indigo-600 text-white py-2 px-6 rounded-lg hover:bg-indigo-700 transition"
-              >
-                Start Streaming
-              </button>
-              <button
-                onClick={() => navigate('/')}
-                className="bg-gray-200 text-gray-800 py-2 px-6 rounded-lg hover:bg-gray-300 transition"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={createTestStream}
-                className="bg-yellow-500 text-white py-2 px-6 rounded-lg hover:bg-yellow-600 transition"
-              >
-                Create Test Stream
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : (
-        // Streaming interface after streaming starts
-        <div className="flex flex-col lg:flex-row gap-4">
-          <div className="lg:flex-1">
-            <div className="bg-white rounded-lg shadow-md overflow-hidden">
-              <div className="p-4 bg-gray-50 border-b">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h1 className="text-xl font-bold">Live Stream</h1>
-                    <div className="flex items-center mt-1">
-                      <span className="inline-block bg-red-500 text-white text-xs px-2 py-1 rounded-full mr-2">
-                        LIVE
-                      </span>
-                      <span className="text-gray-600 text-sm">
-                        Stream ID: <span className="font-mono">{streamId}</span>
-                      </span>
-                    </div>
-                  </div>
-                  <div className="text-sm text-gray-600 font-semibold">
-                    {viewerCount} {viewerCount === 1 ? 'viewer' : 'viewers'}
-                  </div>
-                </div>
+        <div className="cs-setup-container">
+          {showMetadataForm ? (
+            <>
+              {/* Header */}
+              <div className="cs-setup-header">
+                <h1>Set Up Your Stream</h1>
+                <p>Provide details about your stream before going live</p>
               </div>
               
-              <div className="bg-black rounded-lg overflow-hidden aspect-video relative">
+              <form onSubmit={handleMetadataSubmit} className="cs-setup-content">
+                {error && (
+                  <div className="cs-error">
+                    {error}
+                  </div>
+                )}
+                
+                {/* Title */}
+                <div className="cs-form-group">
+                  <label htmlFor="title">Stream Title *</label>
+                  <input
+                    type="text"
+                    id="title"
+                    value={streamMetadata.title}
+                    onChange={(e) => setStreamMetadata(prev => ({ ...prev, title: e.target.value }))}
+                    placeholder="Enter an engaging title for your stream"
+                    required
+                  />
+                </div>
+
+                {/* Description */}
+                <div className="cs-form-group">
+                  <label htmlFor="description">Description</label>
+                  <textarea
+                    id="description"
+                    value={streamMetadata.description}
+                    onChange={(e) => setStreamMetadata(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="Describe what your stream is about..."
+                    rows={4}
+                    maxLength={500}
+                  />
+                  <p className="cs-form-help">
+                    {streamMetadata.description.length}/500 characters
+                  </p>
+                </div>
+
+                {/* Category */}
+                <div className="cs-form-group">
+                  <label htmlFor="category">Category *</label>
+                  <select
+                    id="category"
+                    value={streamMetadata.category}
+                    onChange={(e) => setStreamMetadata(prev => ({ ...prev, category: e.target.value }))}
+                    required
+                  >
+                    <option value="">Select a category</option>
+                    {categories.map((category) => (
+                      <option key={category} value={category}>
+                        {category}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Stream ID */}
+                <div className="cs-form-group">
+                  <label htmlFor="streamId">Stream ID (optional)</label>
+                  <input
+                    type="text"
+                    id="streamId"
+                    value={streamId}
+                    onChange={(e) => setStreamId(e.target.value)}
+                    placeholder="Leave empty for random ID"
+                  />
+                  <p className="cs-form-help">
+                    This will be used in the stream URL
+                  </p>
+                </div>
+
+                <div className="cs-setup-actions">
+                  <button
+                    type="submit"
+                    className="cs-btn cs-btn-primary"
+                  >
+                    Continue to Stream Setup
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/')}
+                    className="cs-btn cs-btn-secondary"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </>
+          ) : (
+            <>
+              {/* Stream Preview */}
+              <div className="cs-setup-header">
+                <h1>Ready to Stream</h1>
+                <p>Review your stream details and start broadcasting</p>
+              </div>
+              
+              <div className="cs-setup-content">
+                {error && (
+                  <div className="cs-error">
+                    {error}
+                  </div>
+                )}
+                
+                {/* Stream Preview */}
+                <div className="cs-stream-preview">
+                  <div className="cs-preview-thumbnail">
+                    <div className="cs-default-thumbnail">
+                      <span className="category-icon">{getCategoryIcon(streamMetadata.category)}</span>
+                    </div>
+                  </div>
+                  <div className="cs-preview-info">
+                    <h3>{streamMetadata.title}</h3>
+                    <p className="cs-preview-category">
+                      <span className="category-icon">{getCategoryIcon(streamMetadata.category)}</span>
+                      <span>{streamMetadata.category}</span>
+                    </p>
+                    {streamMetadata.description && (
+                      <p className="cs-preview-description">{streamMetadata.description}</p>
+                    )}
+                    <p className="cs-preview-id">Stream ID: {streamId || 'Auto-generated'}</p>
+                  </div>
+                </div>
+
+                <div className="cs-setup-actions">
+                  <button
+                    onClick={startStream}
+                    className="cs-btn cs-btn-primary"
+                  >
+                    🚀 Go Live
+                  </button>
+                  <button
+                    onClick={() => setShowMetadataForm(true)}
+                    className="cs-btn cs-btn-secondary"
+                  >
+                    ← Edit Details
+                  </button>
+                  <button
+                    onClick={createTestStream}
+                    className="cs-btn cs-btn-warning"
+                  >
+                    Create Test Stream
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      ) : (
+        // Streaming interface after streaming starts - Match WatchStream layout
+        <div className="cs-new-layout">
+          {/* Stream Video - Full Width */}
+          <div className="cs-video-container">
+            <div className={`video-layout ${coStreamers.length > 0 ? 'split-screen' : 'single-screen'}`}>
+              {/* Main broadcaster video */}
+              <div className="main-video">
                 <video
                   ref={localVideoRef}
                   autoPlay
                   playsInline
                   muted
-                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                  className="cs-local-video"
                 />
                 
                 {!videoEnabled && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-gray-900 bg-opacity-70 text-white">
-                    <div className="text-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className="cs-video-disabled-overlay">
+                    <div>
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                       </svg>
@@ -611,69 +894,179 @@ const CreateStream = ({ username, socket }: CreateStreamProps) => {
                   </div>
                 )}
               </div>
-              
-              <div className="p-4">
-                <div className="mb-2 text-sm text-gray-600">
-                  <div>Resolution: {streamStats.resolution}</div>
-                  <div>Frame Rate: {streamStats.frameRate} fps</div>
+
+              {/* Co-streamer videos */}
+              {coStreamers.length > 0 && (
+                <div className="co-streamer-section">
+                  {coStreamers.map((coStreamer) => (
+                    <div key={coStreamer.socketId} className="co-streamer-video-container">
+                      <video
+                        className="co-streamer-video"
+                        autoPlay
+                        playsInline
+                        ref={(el) => {
+                          if (el && coStreamer.stream) {
+                            el.srcObject = coStreamer.stream
+                          }
+                        }}
+                      />
+                      <div className="video-label">
+                        {coStreamer.username}
+                      </div>
+                      <div className="video-controls">
+                        <button 
+                          className="control-btn kick-btn"
+                          onClick={() => handleKickCoStreamer(coStreamer.username)}
+                          title={`Kick ${coStreamer.username}`}
+                        >
+                          🚫
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                
-                <div className="flex flex-wrap gap-2 mb-4">
-                  <button
-                    onClick={toggleVideo}
-                    className={`flex items-center py-2 px-4 rounded-lg transition ${
-                      videoEnabled ? 'bg-gray-200 hover:bg-gray-300' : 'bg-red-100 text-red-700 hover:bg-red-200'
-                    }`}
-                  >
-                    {videoEnabled ? 'Disable Video' : 'Enable Video'}
-                  </button>
-                  
-                  <button
-                    onClick={toggleAudio}
-                    className={`flex items-center py-2 px-4 rounded-lg transition ${
-                      audioEnabled ? 'bg-gray-200 hover:bg-gray-300' : 'bg-red-100 text-red-700 hover:bg-red-200'
-                    }`}
-                  >
-                    {audioEnabled ? 'Disable Audio' : 'Enable Audio'}
-                  </button>
-                  
-                  <button
-                    onClick={restartVideo}
-                    className="flex items-center py-2 px-4 bg-gray-200 rounded-lg hover:bg-gray-300 transition"
-                  >
-                    Restart Video
-                  </button>
+              )}
+            </div>
+          </div>
+
+          {/* Content Row - Info and Chat Side by Side */}
+          <div className="cs-content-row">
+            {/* Main Content Area */}
+            <div className="cs-main-content">
+              {/* Stream Info and Stats */}
+              <div className="cs-info-section">
+                {/* Stream Info */}
+                <div className="cs-stream-info">
+                  <div className="cs-stream-header">
+                    <div className="cs-stream-details">
+                      <h2 className="cs-stream-title">{streamMetadata.title || 'Live Stream'}</h2>
+                      <div className="cs-stream-category">
+                        <span className="category-icon">{getCategoryIcon(streamMetadata.category)}</span>
+                        <span>{streamMetadata.category}</span>
+                      </div>
+                      {streamMetadata.description && (
+                        <p className="cs-stream-description">{streamMetadata.description}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="cs-stream-metadata">
+                    <div className="cs-live-indicator">
+                      <span className="cs-live-badge">LIVE</span>
+                    </div>
+                    <div className="cs-viewers">
+                      👥 {viewerCount} {viewerCount === 1 ? 'viewer' : 'viewers'}
+                    </div>
+                  </div>
+                  <div className="cs-stream-id">
+                    Stream ID: <span>{streamId}</span>
+                  </div>
                 </div>
-                
-                <div className="flex justify-between items-center">
+
+                {/* Stream Stats */}
+                <div className="cs-stream-stats">
+                  <h3>Stream Statistics</h3>
+                  <div className="cs-stats-grid">
+                    <div className="cs-stat-item">
+                      <div className="cs-stat-label">Resolution</div>
+                      <div className="cs-stat-value">{streamStats.resolution}</div>
+                    </div>
+                    <div className="cs-stat-item">
+                      <div className="cs-stat-label">Frame Rate</div>
+                      <div className="cs-stat-value">{streamStats.frameRate} fps</div>
+                    </div>
+                    <div className="cs-stat-item">
+                      <div className="cs-stat-label">Viewers</div>
+                      <div className="cs-stat-value">{viewerCount}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Stream Controls */}
+                <div className="cs-stream-controls">
+                  <h3>Stream Controls</h3>
+                  <div className="cs-controls-grid">
+                    <button
+                      onClick={toggleVideo}
+                      className={`cs-control-btn ${videoEnabled ? 'enabled' : 'disabled'}`}
+                    >
+                      {videoEnabled ? '📹 Disable Video' : '📹 Enable Video'}
+                    </button>
+                    
+                    <button
+                      onClick={toggleAudio}
+                      className={`cs-control-btn ${audioEnabled ? 'enabled' : 'disabled'}`}
+                    >
+                      {audioEnabled ? '🎤 Disable Audio' : '🎤 Enable Audio'}
+                    </button>
+                    
+                    <button
+                      onClick={restartVideo}
+                      className="cs-control-btn action"
+                    >
+                      🔄 Restart Video
+                    </button>
+                  </div>
+                  
                   <button
                     onClick={stopStream}
-                    className="bg-red-600 text-white py-2 px-6 rounded-lg hover:bg-red-700 transition"
+                    className="cs-stop-stream-btn"
                   >
-                    Stop Streaming
+                    🛑 Stop Streaming
                   </button>
-                  
-                  <div className="text-gray-600 text-sm">
-                    Share link: 
-                    <span className="font-mono bg-gray-100 p-1 rounded ml-1">
-                      {window.location.origin}/view/{streamId}
-                    </span>
+                </div>
+
+                {/* Share Link */}
+                <div className="cs-share-section">
+                  <h3>Share Your Stream</h3>
+                  <div className="cs-share-link">
+                    {window.location.origin}/view/{streamId}
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-          
-          {/* Chat component for the streamer */}
-          <div className="w-full lg:w-96 h-[500px]">
-            <Chat 
-              username={username}
-              streamId={streamId}
-              socket={socket}
-            />
+            
+            {/* Chat component for the streamer */}
+            <div className="cs-chat-sidebar">
+              <Chat 
+                username={username}
+                streamId={streamId}
+                socket={socket}
+                hasJoined={false}
+                hasRequestedJoin={false}
+                onRequestJoin={() => {}}
+                cameraEnabled={videoEnabled}
+                micEnabled={audioEnabled}
+                onCameraToggle={toggleVideo}
+                onMicToggle={toggleAudio}
+              />
+            </div>
           </div>
         </div>
       )}
+
+      {/* Join Request Popups for Streamer */}
+      {isStreaming && joinRequests.map((request) => (
+        <div key={request.username} className="cs-join-request-popup">
+          <div className="cs-popup-content">
+            <h4>Join Request</h4>
+            <p><strong>{request.username}</strong> wants to join your stream</p>
+            <div className="cs-popup-actions">
+              <button 
+                className="cs-accept-btn"
+                onClick={() => handleJoinRequestResponse(request.username, true)}
+              >
+                Accept
+              </button>
+              <button 
+                className="cs-reject-btn"
+                onClick={() => handleJoinRequestResponse(request.username, false)}
+              >
+                Reject
+              </button>
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   )
 }

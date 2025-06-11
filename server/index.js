@@ -10,6 +10,7 @@ import jwt from 'jsonwebtoken';
 import User from './models/User.js';
 import auth from './middleware/auth.js';
 import fetch from 'node-fetch';
+import Video from './models/Video.js';
 
 dotenv.config();
 
@@ -243,6 +244,336 @@ app.get('/api/search/bible', async (req, res) => {
   }
 });
 
+// Video routes
+app.get('/api/videos', async (req, res) => {
+  try {
+    const { category } = req.query;
+    
+    // Build query
+    const query = {};
+    if (category) {
+      query.category = category;
+    }
+    
+    const videos = await Video.find(query)
+      .sort({ _id: -1 }) // Sort by newest first (using _id since it contains timestamp)
+      .limit(50); // Limit to 50 videos
+    
+    res.json(videos);
+  } catch (error) {
+    console.error('Error fetching videos:', error);
+    res.status(500).json({ error: 'Failed to fetch videos' });
+  }
+});
+
+// Get single video by ID
+app.get('/api/videos/:id', async (req, res) => {
+  try {
+    const video = await Video.findById(req.params.id);
+    if (!video) {
+      return res.status(404).json({ error: 'Video not found' });
+    }
+    res.json(video);
+  } catch (error) {
+    console.error('Error fetching video by ID:', error);
+    res.status(500).json({ error: 'Failed to fetch video' });
+  }
+});
+
+app.post('/api/videos', auth, async (req, res) => {
+  try {
+    const { category, channel_name, title, url } = req.body;
+
+    // Validate required fields
+    if (!category || !channel_name || !title || !url) {
+      return res.status(400).json({ error: 'All fields are required' });
+    }
+
+    // Validate YouTube URL format
+    if (!url.includes('youtube.com/watch?v=')) {
+      return res.status(400).json({ error: 'Invalid YouTube URL format' });
+    }
+
+    // Check if video already exists
+    const existingVideo = await Video.findOne({ url });
+    if (existingVideo) {
+      return res.status(400).json({ error: 'Video already exists' });
+    }
+
+    // Create new video
+    const video = new Video({
+      category,
+      channel_name,
+      title,
+      url
+    });
+
+    await video.save();
+    res.status(201).json(video);
+  } catch (error) {
+    console.error('Error adding video:', error);
+    res.status(500).json({ error: 'Failed to add video' });
+  }
+});
+
+// Get unique categories
+app.get('/api/videos/categories', async (req, res) => {
+  try {
+    const categories = await Video.distinct('category');
+    res.json(categories);
+  } catch (error) {
+    console.error('Error fetching categories:', error);
+    res.status(500).json({ error: 'Failed to fetch categories' });
+  }
+});
+
+// Religious Sources API Routes
+// Get all Quran data or search/filter
+app.get('/api/quran', async (req, res) => {
+  try {
+    const { search, chapter, limit = 100 } = req.query;
+    const collection = mongoose.connection.db.collection('quran');
+    
+    if (search) {
+      // Search functionality
+      const allData = await collection.findOne({});
+      if (!allData) {
+        return res.json([]);
+      }
+      
+      const results = [];
+      Object.keys(allData).forEach(chapterKey => {
+        if (chapterKey !== '_id' && Array.isArray(allData[chapterKey])) {
+          allData[chapterKey].forEach(verse => {
+            if (verse.text && verse.text.toLowerCase().includes(search.toLowerCase())) {
+              results.push(verse);
+            }
+          });
+        }
+      });
+      
+      res.json(results.slice(0, parseInt(limit)));
+      return;
+    }
+    
+    if (chapter) {
+      // Get specific chapter
+      const allData = await collection.findOne({});
+      if (!allData || !allData[chapter]) {
+        return res.json([]);
+      }
+      
+      res.json(allData[chapter]);
+      return;
+    }
+    
+    // Get all chapters overview (for sidebar)
+    const allData = await collection.findOne({});
+    if (!allData) {
+      return res.json([]);
+    }
+    
+    const chapters = [];
+    Object.keys(allData).forEach(key => {
+      if (key !== '_id' && Array.isArray(allData[key])) {
+        chapters.push({
+          _id: key,
+          number: parseInt(key),
+          name: `Surah ${key}`,
+          verses: allData[key].length
+        });
+      }
+    });
+    
+    res.json(chapters.sort((a, b) => a.number - b.number));
+  } catch (error) {
+    console.error('Error fetching Quran:', error);
+    res.status(500).json({ error: 'Failed to fetch Quran data' });
+  }
+});
+
+// Get Quran chapters list
+app.get('/api/quran/chapters', async (req, res) => {
+  try {
+    const collection = mongoose.connection.db.collection('quran');
+    const allData = await collection.findOne({});
+    
+    if (!allData) {
+      return res.json([]);
+    }
+    
+    const chapters = [];
+    Object.keys(allData).forEach(key => {
+      if (key !== '_id' && Array.isArray(allData[key])) {
+        chapters.push({
+          _id: key,
+          number: parseInt(key),
+          name: `Surah ${key}`,
+          verses: allData[key].length
+        });
+      }
+    });
+    
+    res.json(chapters.sort((a, b) => a.number - b.number));
+  } catch (error) {
+    console.error('Error fetching Quran chapters:', error);
+    res.status(500).json({ error: 'Failed to fetch Quran chapters' });
+  }
+});
+
+// Get specific Quran chapter
+app.get('/api/quran/chapter/:number', async (req, res) => {
+  try {
+    const chapterNumber = req.params.number;
+    const collection = mongoose.connection.db.collection('quran');
+    const allData = await collection.findOne({});
+    
+    if (!allData || !allData[chapterNumber]) {
+      return res.status(404).json({ error: 'Chapter not found' });
+    }
+    
+    res.json(allData[chapterNumber]);
+  } catch (error) {
+    console.error('Error fetching Quran chapter:', error);
+    res.status(500).json({ error: 'Failed to fetch Quran chapter' });
+  }
+});
+
+// Get all Bible data or search/filter
+app.get('/api/bible', async (req, res) => {
+  try {
+    const { search, book, limit = 100 } = req.query;
+    const collection = mongoose.connection.db.collection('bible');
+    
+    let results = [];
+    
+    if (search) {
+      // Search within all chapters and verses
+      const allBooks = await collection.find({}).toArray();
+      
+      allBooks.forEach(bookData => {
+        if (bookData.chapters && Array.isArray(bookData.chapters)) {
+          bookData.chapters.forEach((chapter, chapterIndex) => {
+            if (Array.isArray(chapter)) {
+              chapter.forEach((verse, verseIndex) => {
+                if (verse && typeof verse === 'string' && verse.toLowerCase().includes(search.toLowerCase())) {
+                  results.push({
+                    _id: `${bookData._id}-${chapterIndex + 1}-${verseIndex + 1}`,
+                    book: bookData.name,
+                    text: verse,
+                    chapter: chapterIndex + 1,
+                    verse: verseIndex + 1
+                  });
+                }
+              });
+            }
+          });
+        }
+      });
+      
+      results = results.slice(0, parseInt(limit));
+    } else if (book) {
+      // Get specific book with all its chapters
+      const bookData = await collection.findOne({ 
+        $or: [
+          { abbrev: book },
+          { name: book }
+        ]
+      });
+      
+      if (bookData) {
+        // Return the complete book data for frontend processing
+        results = bookData;
+      }
+    } else {
+      // Get all books overview
+      const allBooks = await collection.find({}).limit(parseInt(limit)).toArray();
+      results = allBooks.map(book => ({
+        _id: book._id,
+        name: book.name,
+        abbrev: book.abbrev,
+        chapters: book.chapters || []
+      }));
+    }
+    
+    res.json(results);
+  } catch (error) {
+    console.error('Error fetching Bible:', error);
+    res.status(500).json({ error: 'Failed to fetch Bible data' });
+  }
+});
+
+// Get all Hadith data or search/filter
+app.get('/api/hadith', async (req, res) => {
+  try {
+    const { search, collection: collectionParam, limit = 100 } = req.query;
+    const collection = mongoose.connection.db.collection('hadith');
+    
+    let query = {};
+    let results = [];
+    
+    if (search) {
+      // Search in hadith chapters
+      query = {
+        $or: [
+          { 'chapters.arabic': { $regex: search, $options: 'i' } },
+          { 'chapters.english': { $regex: search, $options: 'i' } }
+        ]
+      };
+      
+      const hadithBooks = await collection.find(query).limit(parseInt(limit)).toArray();
+      
+      hadithBooks.forEach(book => {
+        if (book.chapters && Array.isArray(book.chapters)) {
+          book.chapters.forEach(chapter => {
+            if ((chapter.arabic && chapter.arabic.toLowerCase().includes(search.toLowerCase())) ||
+                (chapter.english && chapter.english.toLowerCase().includes(search.toLowerCase()))) {
+              results.push({
+                _id: chapter.id || chapter._id,
+                collection: book.id,
+                collection_name: book.metadata?.english?.title || book.metadata?.arabic?.title,
+                hadith_number: chapter.id,
+                text: chapter.english,
+                arabic: chapter.arabic,
+                bookId: chapter.bookId
+              });
+            }
+          });
+        }
+      });
+    } else if (collectionParam) {
+      // Get specific hadith collection
+      const hadithBook = await collection.findOne({ id: parseInt(collectionParam) });
+      if (hadithBook && hadithBook.chapters) {
+        results = hadithBook.chapters.map(chapter => ({
+          _id: chapter.id || chapter._id,
+          collection: hadithBook.id,
+          collection_name: hadithBook.metadata?.english?.title || hadithBook.metadata?.arabic?.title,
+          hadith_number: chapter.id,
+          text: chapter.english,
+          arabic: chapter.arabic,
+          bookId: chapter.bookId
+        }));
+      }
+    } else {
+      // Get all hadith collections overview
+      const allCollections = await collection.find({}).limit(parseInt(limit)).toArray();
+      results = allCollections.map(book => ({
+        _id: book._id,
+        number: book.id,
+        name: book.metadata?.english?.title || book.metadata?.arabic?.title || `Collection ${book.id}`,
+        hadiths: book.chapters ? book.chapters.length : 0,
+        length: book.metadata?.length || 0
+      }));
+    }
+    
+    res.json(results);
+  } catch (error) {
+    console.error('Error fetching Hadith:', error);
+    res.status(500).json({ error: 'Failed to fetch Hadith data' });
+  }
+});
+
 // Helper function to enforce limits
 const enforceLimits = () => {
   // Limit the number of active streams
@@ -368,7 +699,10 @@ io.on('connection', (socket) => {
     const activeStreams = Array.from(streams.entries()).map(([streamId, stream]) => ({
       streamId,
       broadcaster: stream.broadcaster,
-      viewerCount: stream.viewers.size
+      viewerCount: stream.viewers.size,
+      title: stream.title || `${stream.broadcaster}'s Stream`,
+      description: stream.description || '',
+      category: stream.category || 'General'
     }));
     
     socket.emit('active-streams', activeStreams);
@@ -379,14 +713,17 @@ io.on('connection', (socket) => {
     const activeStreams = Array.from(streams.entries()).map(([streamId, stream]) => ({
       streamId,
       broadcaster: stream.broadcaster,
-      viewerCount: stream.viewers.size
+      viewerCount: stream.viewers.size,
+      title: stream.title || `${stream.broadcaster}'s Stream`,
+      description: stream.description || '',
+      category: stream.category || 'General'
     }));
     
     socket.emit('active-streams', activeStreams);
   });
   
   // Start a stream
-  socket.on('start-stream', ({ streamId }) => {
+  socket.on('start-stream', ({ streamId, metadata }) => {
     const user = users.get(socket.id);
     
     if (!user) {
@@ -420,11 +757,14 @@ io.on('connection', (socket) => {
     // Enforce limits before creating a new stream
     enforceLimits();
     
-    // Create new stream
+    // Create new stream with metadata
     streams.set(streamId, {
       broadcaster: user.username,
       viewers: new Set(),
-      createdAt: Date.now() // Add creation timestamp for stream age tracking
+      createdAt: Date.now(),
+      title: metadata?.title || `${user.username}'s Stream`,
+      description: metadata?.description || '',
+      category: metadata?.category || 'General'
     });
     
     // Update user info
@@ -457,10 +797,14 @@ io.on('connection', (socket) => {
     logState();
     
     // Broadcast to all users that a new stream is available
+    const stream = streams.get(streamId);
     socket.broadcast.emit('new-stream', {
       streamId,
       broadcaster: user.username,
-      viewerCount: 0
+      viewerCount: 0,
+      title: stream.title || `${user.username}'s Stream`,
+      description: stream.description || '',
+      category: stream.category || 'General'
     });
   });
   
@@ -623,6 +967,201 @@ io.on('connection', (socket) => {
     if (targetSocket) {
       targetSocket.emit('ice-candidate', { from: socket.id, candidate });
     }
+  });
+
+  // Check if user is streamer
+  socket.on('check-streamer', ({ streamId, username }) => {
+    const user = users.get(socket.id);
+    const stream = streams.get(streamId);
+    
+    if (user && stream) {
+      const isStreamer = stream.broadcaster === username;
+      socket.emit('streamer-status', { isStreamer });
+    }
+  });
+
+  // Handle join requests
+  socket.on('request-join', ({ streamId, username }) => {
+    const stream = streams.get(streamId);
+    if (!stream) {
+      socket.emit('error', { message: 'Stream not found' });
+      return;
+    }
+
+    // Find the broadcaster socket
+    const broadcasterSocket = Array.from(io.sockets.sockets.values())
+      .find(s => {
+        const userData = users.get(s.id);
+        return userData && userData.streamId === streamId && userData.role === 'broadcaster';
+      });
+
+    if (broadcasterSocket) {
+      // Send join request to broadcaster
+      broadcasterSocket.emit('join-request', { 
+        username, 
+        timestamp: Date.now() 
+      });
+    } else {
+      socket.emit('error', { message: 'Broadcaster not found' });
+    }
+  });
+
+  // Handle join request response
+  socket.on('respond-join-request', ({ streamId, requestUsername, accept }) => {
+    const user = users.get(socket.id);
+    const stream = streams.get(streamId);
+    
+    if (!user || !stream || stream.broadcaster !== user.username) {
+      socket.emit('error', { message: 'Not authorized' });
+      return;
+    }
+
+    // Find the requesting user's socket
+    const requestingSocket = Array.from(io.sockets.sockets.values())
+      .find(s => {
+        const userData = users.get(s.id);
+        return userData && userData.username === requestUsername;
+      });
+
+    if (requestingSocket) {
+      if (accept) {
+        // Add user to co-streamers
+        if (!stream.coStreamers) {
+          stream.coStreamers = new Set();
+        }
+        stream.coStreamers.add(requestingSocket.id);
+        
+        // Update user role
+        const requestingUser = users.get(requestingSocket.id);
+        if (requestingUser) {
+          requestingUser.role = 'co-streamer';
+        }
+        
+        requestingSocket.emit('join-accepted');
+        
+        // Notify all viewers that someone joined as co-streamer
+        io.to(streamId).emit('co-streamer-joined', { 
+          username: requestUsername 
+        });
+      } else {
+        requestingSocket.emit('join-rejected');
+      }
+    }
+  });
+
+  // Co-streamer WebRTC signaling
+  socket.on('co-streamer-offer', ({ streamId, offer }) => {
+    const user = users.get(socket.id);
+    if (!user) return;
+    
+    // Send offer to main broadcaster and other viewers
+    socket.to(streamId).emit('co-streamer-offer', {
+      from: socket.id,
+      offer
+    });
+  });
+
+  socket.on('co-streamer-answer', ({ target, answer }) => {
+    const targetSocket = io.sockets.sockets.get(target);
+    if (targetSocket) {
+      targetSocket.emit('co-streamer-answer', {
+        from: socket.id,
+        answer
+      });
+    }
+  });
+
+  socket.on('co-streamer-ice-candidate', ({ target, candidate, streamId }) => {
+    if (target) {
+      // Send to specific target
+      const targetSocket = io.sockets.sockets.get(target);
+      if (targetSocket) {
+        targetSocket.emit('co-streamer-ice-candidate', {
+          from: socket.id,
+          candidate
+        });
+      }
+    } else if (streamId) {
+      // Broadcast to stream
+      socket.to(streamId).emit('co-streamer-ice-candidate', {
+        from: socket.id,
+        candidate
+      });
+    }
+  });
+
+  // Kick co-streamer
+  socket.on('kick-co-streamer', ({ streamId, coStreamerUsername }) => {
+    const user = users.get(socket.id);
+    const stream = streams.get(streamId);
+    
+    // Only allow broadcaster to kick co-streamers
+    if (!user || !stream || stream.broadcaster !== user.username) {
+      socket.emit('error', { message: 'Not authorized to kick co-streamers' });
+      return;
+    }
+
+    // Find the co-streamer socket
+    const coStreamerSocket = Array.from(io.sockets.sockets.values())
+      .find(s => {
+        const userData = users.get(s.id);
+        return userData && userData.username === coStreamerUsername && userData.streamId === streamId;
+      });
+
+    if (coStreamerSocket) {
+      const coStreamerUser = users.get(coStreamerSocket.id);
+      if (coStreamerUser) {
+        // Remove from co-streamers
+        if (stream.coStreamers) {
+          stream.coStreamers.delete(coStreamerSocket.id);
+        }
+        
+        // Change role back to viewer
+        coStreamerUser.role = 'viewer';
+        
+        // Add back to viewers
+        stream.viewers.add(coStreamerSocket.id);
+        
+        // Notify the kicked user
+        coStreamerSocket.emit('kicked-from-co-streaming');
+        
+        // Notify all users in the stream
+        io.to(streamId).emit('co-streamer-left', { 
+          username: coStreamerUsername 
+        });
+        
+        console.log(`User ${coStreamerUsername} was kicked from co-streaming by ${user.username}`);
+      }
+    }
+  });
+
+  // Leave co-streaming
+  socket.on('leave-co-streaming', ({ streamId }) => {
+    const user = users.get(socket.id);
+    const stream = streams.get(streamId);
+    
+    if (!user || !stream || user.role !== 'co-streamer') {
+      socket.emit('error', { message: 'Not currently co-streaming' });
+      return;
+    }
+
+    // Remove from co-streamers
+    if (stream.coStreamers) {
+      stream.coStreamers.delete(socket.id);
+    }
+    
+    // Change role back to viewer
+    user.role = 'viewer';
+    
+    // Add back to viewers
+    stream.viewers.add(socket.id);
+    
+    // Notify all users in the stream
+    io.to(streamId).emit('co-streamer-left', { 
+      username: user.username 
+    });
+    
+    console.log(`User ${user.username} left co-streaming`);
   });
   
   // Leave stream

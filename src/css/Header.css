@@ -1,0 +1,133 @@
+/* Fixed Header Styles */
+.fixed-header {
+  position: fixed;
+  top: 0;
+  left: 240px;
+  z-index: 1000;
+  padding: 24px 20px;
+  display: flex;
+  justify-content: flex-end;
+  width: calc(100vw - 240px);
+  height: 70px;
+  background: rgba(26, 26, 26, 0.95);
+  backdrop-filter: blur(10px);
+  box-sizing: border-box;
+  align-items: center;
+}
+
+.logged-in-actions,
+.logged-out-actions {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+.go-live-btn {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  padding: 12px 20px;
+  border-radius: 6px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 100px;
+  justify-content: center;
+}
+
+.go-live-btn:hover {
+  background: linear-gradient(135deg, #059669, #047857);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+  text-decoration: none;
+}
+
+.logout-btn {
+  background: #2d2d2d;
+  color: white;
+  padding: 12px 20px;
+  border-radius: 6px;
+  border: 1px solid #444;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 100px;
+  text-decoration: none;
+}
+
+.logout-btn:hover {
+  background: #3a3a3a;
+  border-color: #555;
+  text-decoration: none;
+}
+
+.login-btn {
+  background: linear-gradient(135deg, #10b981, #0ea5e9);
+  color: white;
+  padding: 12px 25px;
+  border-radius: 6px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  border: none;
+  cursor: pointer;
+}
+
+.login-btn:hover {
+  background: linear-gradient(135deg, #0ea5e9, #10b981);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+  text-decoration: none;
+}
+
+/* Tablet responsiveness */
+@media (max-width: 1024px) {
+  .fixed-header {
+    left: 200px;
+    width: calc(100vw - 200px);
+    padding: 20px 15px;
+  }
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .fixed-header {
+    left: 0;
+    width: 100vw;
+    padding: 15px 10px;
+    height: 60px;
+    justify-content: center;
+  }
+}
+
+/* Small mobile devices */
+@media (max-width: 480px) {
+  .fixed-header {
+    padding: 12px 8px;
+    height: 55px;
+  }
+  
+  .logged-in-actions,
+  .logged-out-actions {
+    gap: 8px;
+  }
+  
+  .go-live-btn,
+  .logout-btn {
+    padding: 8px 12px;
+    font-size: 12px;
+    min-width: 80px;
+  }
+  
+  .login-btn {
+    padding: 8px 15px;
+    font-size: 12px;
+  }
+} 

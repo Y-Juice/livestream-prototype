@@ -2,16 +2,35 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { io, Socket } from 'socket.io-client'
 import './App.css'
+
+interface Stream {
+  streamId: string
+  broadcaster: string
+  viewerCount: number
+  title?: string
+  description?: string
+  category?: string
+}
 import Login from './components/auth/Login'
 import Register from './components/auth/Register'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 
 // Components
-import Home from './components/Home'
+import Home from './pages/Home'
 import CreateStream from './components/CreateStream'
-import ViewStream from './components/ViewStream'
-import Navbar from './components/Navbar'
-import Transcription from './components/Transcription'
+
+import WatchVideo from './pages/WatchVideo'
+import WatchStream from './pages/WatchStream'
+import CategoryPage from './pages/CategoryPage'
+import Sidebar from './components/Sidebar'
+import Header from './components/Header'
+import Browse from './pages/Browse'
+import Following from './pages/Following'
+import Library from './pages/Library'
+import Profile from './pages/Profile'
+import Quran from './pages/Quran'
+import Bible from './pages/Bible'
+import Hadith from './pages/Hadith'
 
 // Create socket connection
 const createSocket = (): Socket => {
@@ -25,9 +44,8 @@ const createSocket = (): Socket => {
 function App() {
   const [username, setUsername] = useState<string>('')
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false)
-  const [activeStreams, setActiveStreams] = useState<any[]>([])
-  const [connectionError, setConnectionError] = useState<string>('')
-  const [isTranscriptionActive, setIsTranscriptionActive] = useState<boolean>(false)
+  const [activeStreams, setActiveStreams] = useState<Stream[]>([])
+  const [, setConnectionError] = useState<string>('')
   
   const socketRef = useRef<Socket | null>(null)
 
@@ -35,7 +53,6 @@ function App() {
   const checkAuthStatus = useCallback(() => {
     const token = localStorage.getItem('token')
     const storedUsername = localStorage.getItem('username')
-    const storedUser = localStorage.getItem('user')
     
     console.log('Checking auth status:', { hasToken: !!token, hasUsername: !!storedUsername })
     
@@ -54,7 +71,6 @@ function App() {
   // Initialize socket connection
   useEffect(() => {
     // Check authentication first
-    const isAuthenticated = checkAuthStatus()
     
     if (!socketRef.current) {
       socketRef.current = createSocket()
@@ -102,7 +118,7 @@ function App() {
   useEffect(() => {
     if (!socketRef.current) return
     
-    const handleActiveStreams = (streams: any[]) => {
+    const handleActiveStreams = (streams: Stream[]) => {
       console.log('Received active streams:', streams)
       setActiveStreams(streams)
     }
@@ -166,48 +182,98 @@ function App() {
 
   return (
     <Router>
-      <div className="min-h-screen bg-gray-100">
-        <Navbar 
-          username={username} 
-          isLoggedIn={isLoggedIn} 
-          onLogout={handleLogout} 
-        />
-        <div className="container mx-auto px-4 py-8">
-          {connectionError && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-              {connectionError}
-            </div>
-          )}
+      <AppContent 
+        username={username}
+        isLoggedIn={isLoggedIn}
+        handleLogin={handleLogin}
+        handleLogout={handleLogout}
+        activeStreams={activeStreams}
+        socketRef={socketRef}
+      />
+    </Router>
+  )
+}
 
-          <div className="mb-4">
-            <button
-              onClick={() => setIsTranscriptionActive(!isTranscriptionActive)}
-              className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-            >
-              {isTranscriptionActive ? 'Stop Speech Recognition' : 'Start Speech Recognition'}
-            </button>
-            <span className="ml-2 text-sm text-gray-600">
-              Using browser's built-in speech recognition
-            </span>
-          </div>
+interface AppContentProps {
+  username: string;
+  isLoggedIn: boolean;
+  handleLogin: (username: string) => void;
+  handleLogout: () => void;
+  activeStreams: Stream[];
+  socketRef: React.MutableRefObject<Socket | null>;
+}
 
-          {isTranscriptionActive && <Transcription isActive={isTranscriptionActive} />}
+const AppContent = ({ username, isLoggedIn, handleLogout, activeStreams, socketRef }: AppContentProps) => {
+  const location = useLocation();
 
+  return (
+    <div className="App" style={{ display: 'flex' }}>
+      {/* Sidebar - only show when logged in and not on login/register */}
+      {isLoggedIn && !['/login', '/register'].includes(location.pathname) && (
+        <Sidebar username={username} />
+      )}
+      
+      {/* Header - only show when not on login/register */}
+      {!['/login', '/register'].includes(location.pathname) && (
+        <Header isLoggedIn={isLoggedIn} onLogout={handleLogout} />
+      )}
+      
+      <div style={{ flex: 1 }}>
+
+        
+        <div style={{ marginTop: isLoggedIn ? '0' : '0' }}>
           <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
+            <Route 
+              path="/login" 
+              element={
+                isLoggedIn ? <Navigate to="/" replace /> : <Login />
+              } 
+            />
+            <Route 
+              path="/register" 
+              element={
+                isLoggedIn ? <Navigate to="/" replace /> : <Register />
+              } 
+            />
             <Route
               path="/"
               element={
-                <ProtectedRoute>
                   <Home 
-                    username={username}
-                    isLoggedIn={isLoggedIn}
-                    onLogin={handleLogin}
                     activeStreams={activeStreams}
                   />
-                </ProtectedRoute>
               }
+            />
+            <Route 
+              path="/browse" 
+              element={
+                <ProtectedRoute>
+                  <Browse />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/following" 
+              element={
+                <ProtectedRoute>
+                  <Following />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/library" 
+              element={
+                <ProtectedRoute>
+                  <Library />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/profile" 
+              element={
+                <ProtectedRoute>
+                  <Profile username={username} />
+                </ProtectedRoute>
+              } 
             />
             <Route 
               path="/create" 
@@ -221,16 +287,21 @@ function App() {
               path="/view/:streamId" 
               element={
                 isLoggedIn 
-                  ? <ViewStream username={username} socket={socketRef.current!} /> 
+                  ? <WatchStream username={username} socket={socketRef.current!} /> 
                   : <Navigate to="/" />
               } 
             />
+            <Route path="/quran" element={<Quran />} />
+            <Route path="/bible" element={<Bible />} />
+            <Route path="/hadith" element={<Hadith />} />
+            <Route path="/video/:id" element={<WatchVideo />} />
+            <Route path="/category/:category" element={<CategoryPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
       </div>
-    </Router>
-  )
-}
+    </div>
+  );
+};
 
 export default App

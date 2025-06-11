@@ -1,0 +1,146 @@
+.category-page-container {
+  background: #1a1a1a;
+  min-height: 100vh;
+  padding: 1.5rem;
+  color: white;
+}
+
+.category-header {
+  margin-bottom: 2rem;
+}
+
+.back-btn {
+  color: #10b981;
+  text-decoration: none;
+  font-weight: 500;
+  margin-bottom: 1rem;
+  display: inline-block;
+  transition: color 0.2s;
+}
+
+.back-btn:hover {
+  color: #059669;
+}
+
+.category-title {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0.5rem 0 0.25rem 0;
+  color: white;
+}
+
+.category-subtitle {
+  color: #888;
+  margin: 0;
+  font-size: 1rem;
+}
+
+.loading-text, .error-text {
+  color: #888;
+  font-size: 1.1rem;
+  text-align: center;
+  margin-top: 2rem;
+}
+
+.error-text {
+  color: #ef4444;
+}
+
+.empty-state {
+  text-align: center;
+  margin-top: 3rem;
+}
+
+.empty-state p {
+  color: #888;
+  font-size: 1.1rem;
+}
+
+.videos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+  max-width: 1400px;
+}
+
+.video-card {
+  background: #2d2d2d;
+  border-radius: 1rem;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid #404040;
+}
+
+.video-card:hover {
+  background: #3d3d3d;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+
+.video-thumbnail-wrapper {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16/9;
+  overflow: hidden;
+}
+
+.video-thumbnail {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.2s ease;
+}
+
+.video-card:hover .video-thumbnail {
+  transform: scale(1.05);
+}
+
+.video-info {
+  padding: 1rem;
+}
+
+.video-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem 0;
+  color: white;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.video-channel {
+  color: #888;
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .category-page-container {
+    padding: 1rem;
+  }
+  
+  .category-title {
+    font-size: 1.5rem;
+  }
+  
+  .videos-grid {
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1rem;
+  }
+  
+  .video-info {
+    padding: 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .videos-grid {
+    grid-template-columns: 1fr;
+  }
+} 

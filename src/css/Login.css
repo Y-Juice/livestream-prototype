@@ -1,0 +1,144 @@
+.login-container {
+  min-height: 100vh;
+  background: #1a1a1a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  color: white;
+}
+
+.login-card {
+  background: #2d2d2d;
+  border-radius: 12px;
+  padding: 40px;
+  width: 100%;
+  max-width: 420px;
+  border: 1px solid #333;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+
+.login-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.login-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 8px;
+}
+
+.login-subtitle {
+  font-size: 14px;
+  color: #888;
+}
+
+.login-subtitle a {
+  color: #10b981;
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.3s ease;
+}
+
+.login-subtitle a:hover {
+  color: #059669;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-label {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: white;
+}
+
+.form-input {
+  background: #1a1a1a;
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 12px 16px;
+  font-size: 14px;
+  color: white;
+  transition: all 0.3s ease;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.form-input::placeholder {
+  color: #666;
+}
+
+.error-message {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 6px;
+  padding: 12px;
+  color: #ef4444;
+  font-size: 14px;
+  text-align: center;
+}
+
+.submit-btn {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  padding: 14px 20px;
+  border-radius: 6px;
+  border: none;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 10px;
+}
+
+.submit-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #059669, #047857);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+}
+
+.submit-btn:disabled {
+  background: #444;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 480px) {
+  .login-container {
+    padding: 15px;
+  }
+  
+  .login-card {
+    padding: 30px 20px;
+  }
+  
+  .login-title {
+    font-size: 24px;
+  }
+  
+  .form-input {
+    padding: 10px 14px;
+  }
+  
+  .submit-btn {
+    padding: 12px 16px;
+  }
+} 
