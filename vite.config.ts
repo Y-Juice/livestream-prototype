@@ -16,7 +16,7 @@ export default defineConfig({
   },
   define: {
     __API_URL__: JSON.stringify(process.env.NODE_ENV === 'production' 
-      ? process.env.VITE_API_URL || 'https://your-railway-app.up.railway.app'
+      ? process.env.VITE_SERVER_URL || 'https://server-production-d7dd.up.railway.app'
       : 'http://localhost:3001'
     ),
   },

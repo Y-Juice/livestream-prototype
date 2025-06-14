@@ -37,10 +37,21 @@ const createSocket = (): Socket => {
   const serverUrl = import.meta.env.VITE_SERVER_URL || 
                    (import.meta.env.PROD ? 'https://server-production-d7dd.up.railway.app' : 'http://localhost:3001')
   
+  console.log('🔗 Socket connecting to:', serverUrl)
+  console.log('🔧 Environment variables:', {
+    VITE_SERVER_URL: import.meta.env.VITE_SERVER_URL,
+    PROD: import.meta.env.PROD,
+    DEV: import.meta.env.DEV,
+    MODE: import.meta.env.MODE
+  })
+  
   return io(serverUrl, {
     reconnectionAttempts: 5,
     reconnectionDelay: 1000,
-    timeout: 10000
+    timeout: 10000,
+    transports: ['websocket', 'polling'],
+    withCredentials: true,
+    autoConnect: true
   })
 }
 
