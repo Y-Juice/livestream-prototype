@@ -198,12 +198,27 @@ const Chat = ({ username, streamId, socket, hasJoined, hasRequestedJoin, onReque
         setBroadcaster(broadcaster)
       }
       
-      setMessages(messages)
+      // Ensure all messages have the required properties
+      const validMessages = messages.map(msg => ({
+        username: typeof msg.username === 'string' ? msg.username : 'Unknown',
+        message: typeof msg.message === 'string' ? msg.message : (msg.message?.message || String(msg.message || '')),
+        timestamp: typeof msg.timestamp === 'number' ? msg.timestamp : Date.now(),
+        isSystem: Boolean(msg.isSystem)
+      }))
+      
+      setMessages(validMessages)
     }
     
     const handleChatMessage = (message: ChatMessage) => {
       console.log(`Received new chat message in stream ${streamId}:`, message)
-      setMessages(prev => [...prev, message])
+      // Ensure the message has all required properties
+      const validMessage = {
+        username: typeof message.username === 'string' ? message.username : 'Unknown',
+        message: typeof message.message === 'string' ? message.message : (message.message?.message || String(message.message || '')),
+        timestamp: typeof message.timestamp === 'number' ? message.timestamp : Date.now(),
+        isSystem: Boolean(message.isSystem)
+      }
+      setMessages(prev => [...prev, validMessage])
     }
     
     const handleViewerJoined = ({ username: joinedUser }: { username: string }) => {
@@ -390,7 +405,7 @@ const Chat = ({ username, streamId, socket, hasJoined, hasRequestedJoin, onReque
               {msg.isSystem ? (
                 <div className="system-message">
                   <span className="system-message-badge">
-                    {msg.message}
+                    {typeof msg.message === 'string' ? msg.message : JSON.stringify(msg.message)}
                   </span>
                 </div>
               ) : (
@@ -414,7 +429,7 @@ const Chat = ({ username, streamId, socket, hasJoined, hasRequestedJoin, onReque
                     </span>
                     <span className="message-timestamp">{formatTime(msg.timestamp)}</span>
                   </div>
-                  <p className="message-text">{msg.message}</p>
+                  <p className="message-text">{typeof msg.message === 'string' ? msg.message : JSON.stringify(msg.message)}</p>
                 </div>
               )}
             </div>
