@@ -14,10 +14,11 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    outDir: 'dist',
+    sourcemap: true,
+  },
   define: {
-    __API_URL__: JSON.stringify(process.env.NODE_ENV === 'production' 
-      ? process.env.VITE_SERVER_URL || 'https://server-production-d7dd.up.railway.app'
-      : 'http://localhost:3001'
-    ),
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV),
   },
 })
