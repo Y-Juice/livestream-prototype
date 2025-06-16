@@ -30,11 +30,7 @@ export const apiCall = async (endpoint: string, options?: RequestInit) => {
       },
     })
     
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      throw new Error(errorData.message || `HTTP error! status: ${response.status}`)
-    }
-    
+    // Return the response directly, let the caller handle the response
     return response
   } catch (error) {
     console.error('API call failed:', error)

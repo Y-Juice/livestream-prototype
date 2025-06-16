@@ -37,19 +37,13 @@ const Login: React.FC = () => {
       // Log the response status
       console.log('Login response status:', response.status);
       
-      let data;
-      try {
-        data = await response.json();
-      } catch (jsonError) {
-        console.error('Error parsing JSON response:', jsonError);
-        throw new Error('Failed to parse server response');
-      }
-
-      console.log('Login response data:', data);
-
       if (!response.ok) {
-        throw new Error(data.error || 'Login failed');
+        const errorData = await response.json().catch(() => ({ error: 'Failed to parse error response' }));
+        throw new Error(errorData.error || `Login failed with status: ${response.status}`);
       }
+
+      const data = await response.json();
+      console.log('Login response data:', data);
 
       // Login successful
       console.log('Login successful');
@@ -65,8 +59,6 @@ const Login: React.FC = () => {
       // Force a window reload to ensure all states are refreshed
       window.location.href = '/';
       
-      // Alternative approach using React Router
-      // setLoginSuccess(true);
     } catch (err) {
       console.error('Login error:', err);
       setError(err instanceof Error ? err.message : 'An error occurred during login');
